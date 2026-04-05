@@ -3,8 +3,11 @@
 import os
 
 # --- Ollama / LLM ---
+# Inference runs in the Ollama server. For CUDA/GPU, enable a GPU session (e.g. Kaggle
+# accelerator) before `ollama serve`, then verify with `nvidia-smi` / `ollama ps`.
+# Optional: CUDA_VISIBLE_DEVICES=0 for the ollama serve process.
 OLLAMA_MODEL = "llava:7b"
-OLLAMA_HOST = "http://localhost:11434"
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
 # --- YouTube Search ---
 SEARCH_QUERIES = [

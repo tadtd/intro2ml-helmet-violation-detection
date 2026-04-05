@@ -17,7 +17,6 @@ import logging
 import os
 import re
 import subprocess
-import time
 from pathlib import Path
 
 import cv2
@@ -216,10 +215,16 @@ def _image_to_bytes(img: Image.Image, max_side: int = 1024) -> bytes:
     return buf.getvalue()
 
 
+def _ollama_client() -> ollama.Client:
+    """Client for the running Ollama server (GPU is chosen by the server, not this SDK)."""
+    return ollama.Client(host=config.OLLAMA_HOST)
+
+
 def _ask_ollama(image_bytes: bytes, prompt: str, model: str = config.OLLAMA_MODEL) -> str:
     """Send an image + prompt to Ollama and return the text response."""
     b64 = base64.b64encode(image_bytes).decode()
-    response = ollama.chat(
+    client = _ollama_client()
+    response = client.chat(
         model=model,
         messages=[{
             "role": "user",
@@ -298,19 +303,44 @@ def run_pipeline(
     queries: list[str] | None = None,
     skip_download: bool = False,
     video_paths: list[str] | None = None,
+    *,
+    max_per_query: int | None = None,
+    max_total: int | None = None,
+    max_duration: int | None = None,
+    resolution: str | None = None,
+    download_dir: str | None = None,
+    frame_interval: float | None = None,
+    dup_threshold: int | None = None,
+    output_dir: str | None = None,
+    results_csv: str | None = None,
+    ollama_model: str | None = None,
 ) -> pd.DataFrame:
     """Run the full crawl → extract → detect pipeline.
 
     Parameters
     ----------
-    queries : optional override for search queries
+    queries : optional override for search queries (replaces defaults when non-empty)
     skip_download : if True, skip YouTube download and use *video_paths*
     video_paths : list of local video files (used when skip_download=True)
+    max_per_query, max_total, max_duration, resolution, download_dir
+        Passed to ``search_and_download`` when not None.
+    frame_interval, dup_threshold
+        Passed to ``extract_frames`` when not None.
+    output_dir, results_csv
+        Override output locations when not None.
+    ollama_model
+        Vision model name for ``detect_no_helmet`` when not None.
 
     Returns a DataFrame with all detected violations.
     """
-    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
-    os.makedirs(os.path.dirname(config.RESULTS_CSV) or ".", exist_ok=True)
+    out_dir = output_dir if output_dir is not None else config.OUTPUT_DIR
+    csv_path = results_csv if results_csv is not None else config.RESULTS_CSV
+    interval = frame_interval if frame_interval is not None else config.FRAME_INTERVAL
+    dup_t = dup_threshold if dup_threshold is not None else config.DUPLICATE_THRESHOLD
+    model = ollama_model if ollama_model is not None else config.OLLAMA_MODEL
+
+    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(csv_path) or ".", exist_ok=True)
 
     # --- Download ---
     if skip_download:
@@ -319,7 +349,18 @@ def run_pipeline(
             for p in (video_paths or [])
         ]
     else:
-        videos = search_and_download(queries=queries)
+        sd_kwargs: dict = {"queries": queries}
+        if max_per_query is not None:
+            sd_kwargs["max_per_query"] = max_per_query
+        if max_total is not None:
+            sd_kwargs["max_total"] = max_total
+        if max_duration is not None:
+            sd_kwargs["max_duration"] = max_duration
+        if resolution is not None:
+            sd_kwargs["resolution"] = resolution
+        if download_dir is not None:
+            sd_kwargs["download_dir"] = download_dir
+        videos = search_and_download(**sd_kwargs)
 
     if not videos:
         log.warning("No videos to process.")
@@ -335,17 +376,17 @@ def run_pipeline(
         vid_path = vid_info["path"]
         log.info("Processing video: %s (%s)", vid_id, vid_info.get("title", ""))
 
-        frames = extract_frames(vid_path)
+        frames = extract_frames(vid_path, interval=interval, dup_threshold=dup_t)
         total_frames += len(frames)
 
         for frame in tqdm(frames, desc=f"Detecting [{vid_id}]", unit="frame"):
-            result = detect_no_helmet(frame["image"])
+            result = detect_no_helmet(frame["image"], model=model)
             if result is None:
                 continue
 
             ts = frame["timestamp_s"]
             fname = f"{vid_id}_{ts}s.jpg"
-            out_path = os.path.join(config.OUTPUT_DIR, fname)
+            out_path = os.path.join(out_dir, fname)
             frame["image"].save(out_path, quality=90)
 
             total_violations += 1
@@ -360,8 +401,8 @@ def run_pipeline(
 
     df = pd.DataFrame(rows)
     if not df.empty:
-        df.to_csv(config.RESULTS_CSV, index=False)
-        log.info("Results saved to %s", config.RESULTS_CSV)
+        df.to_csv(csv_path, index=False)
+        log.info("Results saved to %s", csv_path)
 
     # --- Summary ---
     log.info("=" * 50)
@@ -371,7 +412,7 @@ def run_pipeline(
     log.info("  Violations found : %d", total_violations)
     if total_frames:
         log.info("  Violation rate   : %.1f%%", 100 * total_violations / total_frames)
-    log.info("  Output directory : %s", config.OUTPUT_DIR)
+    log.info("  Output directory : %s", out_dir)
     log.info("=" * 50)
 
     return df
