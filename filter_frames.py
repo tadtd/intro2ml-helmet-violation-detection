@@ -4,6 +4,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import cv2
+import numpy as np
 import pandas as pd
 
 IN_METADATA_CSV = Path("data/frames_metadata.csv")
@@ -139,7 +140,7 @@ def main() -> None:
             df.at[idx, "filter_reason"] = "missing_frame"
             continue
 
-        img = cv2.imread(str(frame_path))
+        img = cv2.imdecode(np.frombuffer(frame_path.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
         if img is None:
             df.at[idx, "filter_reason"] = "read_failed"
             continue

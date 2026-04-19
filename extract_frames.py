@@ -60,7 +60,9 @@ def main() -> None:
 
             frame_name = f"frame_{saved:06d}.jpg"
             frame_path = out_dir / frame_name
-            cv2.imwrite(str(frame_path), frame)
+            ok, buf = cv2.imencode(".jpg", frame)
+            if ok:
+                frame_path.write_bytes(buf.tobytes())
 
             h, w = frame.shape[:2]
             timestamp_sec = frame_idx / fps if fps > 0 else 0.0

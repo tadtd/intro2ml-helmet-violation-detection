@@ -24,8 +24,7 @@ def _url_suffix(url: str, length: int = 10) -> str:
 def _download_one(url: str, outtmpl: str) -> str:
     ydl_opts = {
         "outtmpl": outtmpl,
-        "format": "bv*+ba/b",
-        "merge_output_format": "mp4",
+        "format": "b[ext=mp4]/bv[ext=mp4]+ba[ext=m4a]/best[ext=mp4]/best",
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
