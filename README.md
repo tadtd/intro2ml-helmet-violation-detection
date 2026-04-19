@@ -64,3 +64,47 @@ Edit `config.py` or override at runtime in the notebook. Key settings:
 uv run main.py
 ```
 
+## CVAT Bounding Box Correction Workflow
+
+Use these scripts to review and correct incomplete bounding boxes in CVAT, then merge the corrected annotations back into split COCO files.
+
+### 1. Prepare a single CVAT task bundle
+
+```bash
+python scripts/prepare_cvat_coco_task.py \
+	--dataset-root data/processed/helmet_violation_coco \
+	--output-root data/processed/cvat_round1 \
+	--overwrite
+```
+
+Outputs:
+
+- `data/processed/cvat_round1/images/` (all images with split/id-prefixed names)
+- `data/processed/cvat_round1/annotations/instances_all_for_cvat.json`
+- `data/processed/cvat_round1/cvat_upload_bundle.zip`
+
+### 2. Annotate in CVAT
+
+1. Create a new object detection task.
+2. Upload all files in `data/processed/cvat_round1/images/`.
+3. Import annotations using COCO from `instances_all_for_cvat.json`.
+4. Fix incomplete boxes and save.
+5. Export annotations as COCO 1.0 JSON.
+
+### 3. Merge corrected annotations back to train/val/test
+
+```bash
+python scripts/merge_cvat_coco_back.py \
+	--dataset-root data/processed/helmet_violation_coco \
+	--cvat-coco path/to/cvat_export.json
+```
+
+What this does:
+
+- Backs up current split annotations under `data/processed/helmet_violation_coco/annotations/backup_before_cvat_merge_*`
+- Rewrites:
+	- `data/processed/helmet_violation_coco/annotations/instances_train.json`
+	- `data/processed/helmet_violation_coco/annotations/instances_val.json`
+	- `data/processed/helmet_violation_coco/annotations/instances_test.json`
+- Writes merge report to `data/processed/helmet_violation_coco/reports/cvat_merge_report.json`
+
