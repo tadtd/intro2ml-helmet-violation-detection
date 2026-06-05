@@ -210,3 +210,15 @@ __marimo__/
 downloads/
 output/
 data/
+
+# latex artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.pdf
+*.fdb_latexmk
+*.fls
+*.minted
+*.bbl
+*.blg

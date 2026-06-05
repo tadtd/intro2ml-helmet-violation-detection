@@ -1,0 +1,26 @@
+\section{Giới thiệu bài toán}
+\subsection{Bối cảnh và Động lực}
+
+Tại Việt Nam, xe máy là phương tiện giao thông phổ biến nhất, chiếm tỉ lệ lớn trong lưu lượng phương tiện trên đường phố. Mặc dù quy định về việc đội mũ bảo hiểm đã được ban hành từ lâu, tình trạng người tham gia giao thông không chấp hành quy định này vẫn diễn ra thường xuyên, gây ra những rủi ro lớn về an toàn tính mạng khi xảy ra va chạm.
+
+Việc giám sát và phát hiện các trường hợp vi phạm này hiện nay chủ yếu dựa vào lực lượng chức năng hoặc hệ thống camera giám sát (CCTV) cố định, vốn bị hạn chế về độ bao phủ và yêu cầu nguồn nhân lực lớn để rà soát hậu kiểm.
+
+\subsection{Mô tả bài toán}
+
+Bài toán được xem xét là bài toán phát hiện đối tượng (Object Detection) trên ảnh hoặc video giao thông tại Việt Nam.
+
+Mục tiêu chính là phát hiện và phân loại ba lớp đối tượng:
+
+\begin{itemize}
+    \item \texttt{motorbike}: xe máy
+    \item \texttt{helmet}: mũ bảo hiểm (người tuân thủ)
+    \item \texttt{non-helmet}: không đội mũ bảo hiểm (vi phạm)
+\end{itemize}
+
+Dữ liệu được gán nhãn theo định dạng COCO format, sử dụng bounding box để xác định vị trí đối tượng trong ảnh.
+
+\subsection{Phạm vi và giới hạn}
+
+Bài toán được giới hạn trong bối cảnh giao thông tại Việt Nam, bao gồm dữ liệu thu thập từ camera giám sát, dashcam và video thực tế.
+
+Phương pháp tiếp cận hiện tại chỉ dừng ở mức phát hiện đối tượng bằng bounding box, chưa thực hiện phân đoạn (segmentation) hoặc theo dõi đối tượng (tracking).

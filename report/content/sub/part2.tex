@@ -1,0 +1,370 @@
+\section{Dữ liệu và Phương pháp thu thập}
+\subsection{Nguồn dữ liệu}
+\subsubsection{Dataset có sẵn từ Roboflow (4 bộ)}
+
+\begin{itemize}
+    \item \texttt{CS114\_helmet\_detection\_Final.v1i.coco} – Dataset được thu thập và xử lý bởi nhóm CS114
+    \item \texttt{helmet detection.v1i.coco} – Dataset phát hiện mũ bảo hiểm từ Roboflow
+    \item \texttt{Helmet Detection.v1i.coco (1)} – Dataset bổ sung cho bài toán phát hiện mũ bảo hiểm
+    \item \texttt{Motobike Detection.v1i.coco} – Dataset phát hiện xe máy
+\end{itemize}
+
+Tất cả các dataset đều ở định dạng COCO annotation và đã được chia sẵn thành train/validation/test.
+
+\textbf{Kết luận:} Hệ thống sử dụng các dataset có sẵn và đồng thời mở rộng bằng cách kết hợp nhiều nguồn dữ liệu, kết hợp với dữ liệu tự thu thập nhằm tăng tính đa dạng của tập huấn luyện.
+
+\subsubsection{Dữ liệu tự thu thập qua Web Scraping}
+
+Dữ liệu được thu thập thông qua pipeline bất đồng bộ gồm ba giai đoạn chính:
+
+\begin{itemize}
+    \item \textbf{Giai đoạn 1:} Sử dụng \texttt{Crawl4AI} \cite{crawl4ai2024} kết hợp mô hình Gemma-4 E4B chạy local thông qua Ollama để tự động tìm kiếm web và trích xuất URL video.
+    
+    \item \textbf{Giai đoạn 2:} Sử dụng \texttt{yt-dlp} để tải các video được phát hiện từ YouTube và Google Videos.
+    
+    \item \textbf{Giai đoạn 3:} Bộ điều phối sử dụng \texttt{asyncio}, đảm bảo xử lý bất đồng bộ và quản lý lỗi hiệu quả.
+\end{itemize}
+
+\textbf{Nguồn dữ liệu:} YouTube và Google Videos.
+
+\textbf{Từ khóa tìm kiếm:} Các cụm từ tiếng Việt và tiếng Anh liên quan đến vi phạm mũ bảo hiểm, ví dụ: \textit{"helmet violations Vietnam dashcam"}.
+
+\subsubsection{Dữ liệu không sử dụng API hoặc khảo sát}
+
+\begin{itemize}
+    \item Không sử dụng API trực tiếp (ngoại trừ \texttt{yt-dlp} cho YouTube).
+    \item Không sử dụng khảo sát, Google Form hoặc nguồn dữ liệu thủ công từ người dùng.
+\end{itemize}
+
+\subsection{Phương pháp thu thập dữ liệu}
+
+\subsubsection{Thu thập video (\texttt{video\_scraping.ipynb})}
+
+\textbf{Quy trình thực hiện:}
+
+\begin{enumerate}
+    \item Thiết lập môi trường: Ollama \cite{ollama2024}, Crawl4AI, yt-dlp, Playwright Chromium.
+    \item Người dùng cung cấp prompt tìm kiếm (ví dụ: \textit{helmet violations Vietnam dashcam}).
+    \item Scout Agent tự động xây dựng URL tìm kiếm trên YouTube/Google Videos.
+    \item Crawl dữ liệu từ các trang kết quả bằng \texttt{AsyncWebCrawler}.
+    \item Sử dụng mô hình Gemma-4 (LLM local) \cite{gemma2024} để trích xuất metadata video dưới dạng JSON.
+    \item Tải video bằng \texttt{yt-dlp}.
+\end{enumerate}
+
+\textbf{Công cụ sử dụng:}
+Crawl4AI, Ollama (Gemma-4 E4B), yt-dlp, Playwright, asyncio.
+
+\textbf{Môi trường thực thi:}
+Kaggle Notebook (GPU T4).
+
+\textbf{Định dạng dữ liệu:}
+Video định dạng MP4.
+
+\subsubsection{Trích xuất frame và gán nhãn tự động (\texttt{auto\_labeling.ipynb})}
+
+\textbf{Quy trình thực hiện:}
+
+\begin{enumerate}
+    \item Trích xuất frame từ video theo tần suất cấu hình (mặc định 1 FPS).
+    \item Lọc các frame chứa các đối tượng không liên quan (không có người hoặc xe máy).
+    \item Giữ lại các frame có người điều khiển xe máy.
+    \item Phát hiện hành vi không đội mũ bảo hiểm.
+    \item Xuất annotation theo định dạng COCO bounding box.
+\end{enumerate}
+
+\textbf{Mô hình sử dụng:}
+Grounding DINO \cite{liu2023grounding} (IDEA-Research/grounding-dino-tiny) – mô hình phát hiện đối tượng zero-shot.
+
+\textbf{Prompt sử dụng:}
+\texttt{"person . motorcycle . motorbike . scooter . helmet ."}
+
+\textbf{Logic xử lý frame:}
+\begin{itemize}
+    \item Phát hiện các đối tượng: person, motorcycle, helmet bằng Grounding DINO.
+    \item Ghép cặp person–motorcycle dựa trên IoU, vị trí và khoảng cách tâm.
+    \item Kiểm tra vùng đầu của rider có chứa helmet hay không.
+    \item Nếu không có helmet → gán nhãn \texttt{no\_helmet\_rider}.
+\end{itemize}
+
+\textbf{Công cụ sử dụng:}
+PyTorch, Hugging Face Transformers, OpenCV, PIL.
+
+\textbf{Định dạng dữ liệu:}
+Ảnh JPEG kèm annotation COCO JSON.
+
+\subsubsection{Hợp nhất dataset (build\_unified\_coco\_dataset.py)}
+
+\textbf{Quy trình thực hiện:}
+
+\begin{enumerate}
+    \item Quét toàn bộ nguồn dữ liệu (4 dataset Roboflow + dataset Grounding DINO).
+    \item Chuẩn hóa tên lớp (normalize\_text, canonicalize\_category).
+    \item Kiểm tra và chuẩn hóa bounding box theo định dạng \texttt{xywh}.
+    \item Loại bỏ dữ liệu trùng lặp:
+    \begin{itemize}
+        \item Trùng tuyệt đối bằng MD5
+        \item Trùng gần bằng average hash
+    \end{itemize}
+    \item Chia dữ liệu theo tỷ lệ 7:1:2 (train/validation/test) theo nhóm (group-aware splitting).
+    \item Xuất dataset COCO thống nhất.
+\end{enumerate}
+
+\textbf{Công cụ sử dụng:}
+Python, PIL, hashlib.
+
+\textbf{Định dạng dữ liệu cuối cùng:}
+COCO JSON annotation + ảnh gốc.
+
+\section{Quy trình làm sạch và tiền xử lý dữ liệu}
+
+\subsection{Loại bỏ nhiễu và trùng lặp}
+
+Trong quá trình xây dựng dataset, việc loại bỏ dữ liệu nhiễu và trùng lặp được thực hiện nhằm đảm bảo chất lượng huấn luyện của mô hình.
+
+\subsubsection{Loại bỏ trùng lặp chính xác}
+
+\begin{itemize}
+    \item Sử dụng hàm băm MD5 để phát hiện các ảnh trùng lặp ở mức byte-by-byte.
+    \item Khi phát hiện ảnh trùng, các annotation từ ảnh trùng được hợp nhất vào ảnh gốc nhằm không làm mất thông tin.
+\end{itemize}
+
+\subsubsection{Loại bỏ gần trùng lặp}
+
+\begin{itemize}
+    \item Sử dụng Average Hash (perceptual hashing) với kích thước 8×8 để biểu diễn đặc trưng ảnh.
+    \item Tính khoảng cách Hamming giữa các hash để xác định mức độ tương đồng.
+    \item Ngưỡng loại bỏ được thiết lập là:
+    \[
+        \texttt{near\_duplicate\_threshold} = 4
+    \]
+\end{itemize}
+
+\subsubsection{Lọc frame trùng lặp từ video}
+
+\begin{itemize}
+    \item Sử dụng dhash (difference hash) trong pipeline trích xuất video.
+    \item Ngưỡng Hamming distance = 10 để loại bỏ các frame quá tương đồng.
+    \item Đảm bảo các frame có tính đa dạng cao trong cùng một video.
+\end{itemize}
+
+\subsubsection{Lọc các frame không liên quan (dành cho data thu thập được)}
+
+\begin{itemize}
+    \item Loại bỏ các frame không chứa \textit{motorcycle} hoặc \textit{person}.
+    \item Loại bỏ các frame có rider nhưng tất cả đều đội mũ bảo hiểm (không mang giá trị vi phạm).
+\end{itemize}
+
+\subsection{Xử lý dữ liệu thiếu}
+
+\begin{itemize}
+    \item Kiểm tra sự tồn tại của file ảnh trước khi đưa vào dataset, loại bỏ các file bị thiếu.
+    \item Kiểm tra kích thước ảnh hợp lệ (width, height > 0).
+    \item Loại bỏ annotation có bounding box không hợp lệ (width hoặc height $\leq 0$).
+    \item Ảnh không có annotation hợp lệ sẽ bị loại khỏi dataset.
+\end{itemize}
+
+\subsection{Chuẩn hóa và biến đổi dữ liệu}
+
+\subsubsection{Chuẩn hóa tên category}
+
+Các nhãn được chuẩn hóa nhằm đảm bảo tính thống nhất trong toàn bộ dataset:
+
+\begin{itemize}
+    \item Chuyển toàn bộ về chữ thường, thay thế ký tự \texttt{\_}, \texttt{-} bằng dấu cách.
+    \item Loại bỏ ký tự đặc biệt không cần thiết.
+\end{itemize}
+
+Ánh xạ category được thực hiện như sau:
+
+\begin{itemize}
+    \item \texttt{motorcycle}, \texttt{motobike}, \texttt{scooter}, \texttt{moped} $\rightarrow$ \texttt{motorbike}
+    \item \texttt{helmet} $\rightarrow$ \texttt{helmet}
+    \item \texttt{no helmet}, \texttt{without helmet}, \texttt{non helmet}, \texttt{no helmet rider} $\rightarrow$ \texttt{non-helmet}
+\end{itemize}
+
+Các category không liên quan như \texttt{person}, \texttt{people}, \texttt{human}, \texttt{rider} sẽ bị loại bỏ.
+
+\subsubsection{Chuẩn hóa bounding box}
+
+\begin{itemize}
+    \item Bounding box được clip về phạm vi kích thước ảnh.
+    \item Loại bỏ bounding box có kích thước quá nhỏ (width hoặc height $\leq 1$ pixel).
+    \item Làm tròn tọa độ về 3 chữ số thập phân để đảm bảo tính nhất quán.
+\end{itemize}
+
+\subsection{Chuyển đổi định dạng dữ liệu}
+
+Toàn bộ annotation được chuẩn hóa về định dạng COCO tiêu chuẩn:
+
+\begin{itemize}
+    \item \textbf{bbox}: \([x, y, width, height]\)
+    \item \textbf{area}: width $\times$ height
+    \item \textbf{iscrowd}: 0
+    \item \textbf{category\_id}:
+    \begin{itemize}
+        \item 1: motorbike
+        \item 2: helmet
+        \item 3: non-helmet
+    \end{itemize}
+\end{itemize}
+
+\subsection{Kiểm tra tính nhất quán của dữ liệu}
+
+Sau khi xử lý và xuất dataset, các bước validation được thực hiện:
+
+\begin{itemize}
+    \item Kiểm tra sự tồn tại của file ảnh tương ứng với mỗi annotation.
+    \item Kiểm tra bounding box có nằm trong phạm vi ảnh hay không.
+    \item Loại bỏ annotation mồ côi (orphan annotations).
+    \item Kiểm tra tính hợp lệ của category\_id.
+    \item Đảm bảo không có overlap giữa các tập train/validation/test.
+\end{itemize}
+
+\section{Đảm bảo chất lượng dữ liệu}
+
+\subsection{Tiêu chí đánh giá dữ liệu tốt cho học máy}
+
+Để đảm bảo hiệu quả huấn luyện mô hình, dữ liệu được đánh giá dựa trên các tiêu chí sau:
+
+\begin{itemize}
+    \item Đảm bảo đủ số lượng mẫu cho mỗi lớp.
+    \item Phân bố dữ liệu tương đối cân bằng giữa các lớp, hoặc có chiến lược xử lý mất cân bằng dữ liệu.
+    \item Annotation chính xác, trong đó bounding box phải bao phủ đúng đối tượng.
+    \item Không tồn tại trùng lặp giữa các tập train, validation và test.
+    \item Đảm bảo tính đa dạng của dữ liệu từ nhiều nguồn khác nhau, nhiều góc nhìn và điều kiện ánh sáng khác nhau.
+\end{itemize}
+
+\subsection{Kiểm tra thủ công và kiểm tra tự động}
+
+\subsubsection{Kiểm tra tự động}
+
+Quá trình kiểm tra tự động được tích hợp trong script xây dựng dataset:
+
+\begin{itemize}
+    \item Script \texttt{build\_unified\_coco\_dataset.py} thực hiện validation tự động trong toàn bộ pipeline.
+    \item Phát hiện các lỗi như:
+    \begin{itemize}
+        \item File ảnh bị thiếu hoặc không tồn tại.
+        \item Bounding box không hợp lệ.
+        \item Annotation mồ côi (không có ảnh tương ứng).
+        \item Category ID không hợp lệ hoặc không thống nhất.
+    \end{itemize}
+    \item Sinh báo cáo thống kê chi tiết:
+    \begin{itemize}
+        \item \texttt{summary.json}
+        \item \texttt{manifest.jsonl}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Kiểm tra thủ công bằng CVAT}
+
+Bên cạnh kiểm tra tự động, dữ liệu còn được kiểm tra và hiệu chỉnh thủ công thông qua công cụ CVAT:
+
+\begin{enumerate}
+    \item Sử dụng script \texttt{prepare\_cvat\_coco\_task.py} để chuẩn bị dữ liệu upload lên CVAT.
+    \item Import dataset vào CVAT để thực hiện chỉnh sửa bounding box.
+    \item Hiệu chỉnh các annotation chưa chính xác trực tiếp trên giao diện CVAT.
+    \item Export lại dữ liệu từ CVAT theo định dạng COCO 1.0 JSON.
+    \item Sử dụng script \texttt{merge\_cvat\_coco\_back.py} để hợp nhất annotation đã chỉnh sửa vào dataset gốc.
+\end{enumerate}
+
+Trong quá trình này, hệ thống có cơ chế:
+
+\begin{itemize}
+    \item Tự động tạo bản sao lưu (backup) trước khi merge dữ liệu.
+    \item Sinh báo cáo hợp nhất dữ liệu (\texttt{cvat\_merge\_report.json}) để theo dõi thay đổi.
+\end{itemize}
+
+\subsubsection{Kiểm tra trực quan}
+
+Ngoài kiểm tra tự động và thủ công, dữ liệu còn được kiểm tra trực quan để đánh giá chất lượng annotation:
+
+\begin{itemize}
+    \item Notebook \texttt{auto\_labeling.ipynb} (Section 8 – Preview Results): hiển thị frame kèm bounding box dự đoán để kiểm tra nhanh kết quả gán nhãn.
+    \item Notebook \texttt{eda.ipynb}: trực quan hóa mẫu ảnh cùng annotation để kiểm tra bằng mắt thường.
+\end{itemize}
+
+\section{Lưu trữ và quản lý dữ liệu}
+
+\subsection{Cấu trúc thư mục dữ liệu}
+
+Dữ liệu trong hệ thống được tổ chức theo hai mức chính: dữ liệu thô (raw data) và dữ liệu đã xử lý (processed data). Cấu trúc tổng thể được thiết kế nhằm đảm bảo tính mở rộng, dễ truy xuất và dễ tái sử dụng.
+
+\subsubsection{Dữ liệu thô (raw data)}
+
+\begin{verbatim}
+data/
++-- raw/
+|   +-- CS114_helmet_detection_Final.v1i.coco/
+|   |   +-- train/
+|   |   |   +-- _annotations.coco.json
+|   |   |   +-- *.jpg
+|   |   +-- valid/
+|   |   +-- test/
+|   |
+|   +-- helmet detection.v1i.coco/
+|   +-- Helmet Detection.v1i.coco (1)/
+|   +-- Motobike Detection.v1i.coco/
+|   |
+|   +-- grounding_dino_no_helmet/
+|   |   +-- images/
+|   |   +-- annotations/
+|   |       +-- instances_no_helmet_grounding_dino.json
+|   |
+|   +-- video_scraping/
+|       +-- *.mp4
+\end{verbatim}
+
+\textbf{Mô tả:}
+\begin{itemize}
+    \item Bao gồm các dataset từ Roboflow ở định dạng COCO.
+    \item Dữ liệu tự thu thập từ pipeline auto-labeling sử dụng Grounding DINO.
+    \item Video thô được thu thập từ YouTube và Google Videos thông qua pipeline scraping.
+\end{itemize}
+
+\subsubsection{Dữ liệu đã xử lý (processed data)}
+
+\begin{verbatim}
+data/
++-- processed/
+    +-- helmet_violation_coco/
+        +-- images/
+        |   +-- train/          (~70%)
+        |   +-- val/            (~10%)
+        |   +-- test/           (~20%)
+        |
+        +-- annotations/
+        |   +-- instances_train.json
+        |   +-- instances_val.json
+        |   +-- instances_test.json
+        |
+        +-- reports/
+            +-- summary.json
+            +-- manifest.jsonl
+            +-- eda/
+                +-- overview_split_counts.csv
+                +-- class_counts_by_split.csv
+                +-- class_distribution.png
+                +-- source_contribution.png
+                +-- objects_per_image.csv
+                +-- ...
+\end{verbatim}
+
+\textbf{Mô tả:}
+\begin{itemize}
+    \item \textbf{images/:} chứa toàn bộ ảnh đã được chuẩn hóa và chia theo tập train/val/test.
+    \item \textbf{annotations/:} chứa annotation COCO tương ứng cho từng tập dữ liệu.
+    \item \textbf{reports/:} chứa các kết quả thống kê và phân tích dữ liệu (EDA).
+\end{itemize}
+
+\subsection{Nguyên tắc quản lý dữ liệu}
+
+Hệ thống quản lý dữ liệu được xây dựng dựa trên các nguyên tắc sau:
+
+\begin{itemize}
+    \item \textbf{Phân tách rõ ràng:} dữ liệu thô và dữ liệu đã xử lý được tách biệt hoàn toàn.
+    \item \textbf{Tái lập (reproducibility):} mọi bước xử lý đều có thể tái tạo từ dữ liệu raw.
+    \item \textbf{Chuẩn hóa định dạng:} toàn bộ annotation tuân theo chuẩn COCO.
+    \item \textbf{Dễ mở rộng:} cấu trúc hỗ trợ thêm dataset mới hoặc nguồn dữ liệu mới.
+    \item \textbf{Theo dõi dữ liệu:} sử dụng các file report (summary, manifest) để kiểm soát chất lượng và nguồn gốc dữ liệu.
+\end{itemize}

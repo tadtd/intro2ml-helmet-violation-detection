@@ -1,0 +1,82 @@
+\documentclass[12pt]{article}
+\usepackage{tocloft}
+\cftsetpnumwidth{2em}
+\cftsetrmarg{3em}
+\cftsetindents{section}{1.5em}{2em}
+
+\usepackage{library}
+% \usepackage{IEEEtran}
+% \documentclass[conference]{IEEEtran}
+
+% Disable indentation on new paragraphs
+\setlength{\parindent}{0pt}
+
+% Line spacing 1.5
+\renewcommand{\baselinestretch}{1.5}
+
+% Optional: graphic path
+% \graphicspath{PATH_TO_GRAPHIC_FOLDER}
+
+% To use Times font family, uncomment this row
+% \usepackage{mathptmx}
+
+% To use roman section / subsection, uncomment these rows
+% \renewcommand{\thesection}{\Roman{section}}
+% \renewcommand{\thesubsection}{\thesection.\Roman{subsection}}
+
+% Define course name, report name and report title.
+\newcommand{\coursename}{Nhập môn học máy}
+\newcommand{\reportname}{Hệ thống phát hiện vi phạm không đội mũ bảo hiểm}
+\newcommand{\reporttitle}{BÁO CÁO VỀ DỮ LIỆU}
+
+\newcommand{\studentname}{
+\begin{tabular}{l l} % Two columns: left-aligned
+Đỗ Tiến Đạt   & 23120119 \\
+Lê Nhật Minh Tâm   & 23120163 \\
+Triệu Tuấn Kiệt        &23120137\\
+Nguyễn Đăng Khoa &23120134\\
+Huỳnh Mạnh Tường  & 23120135 \\
+\end{tabular}
+}
+\newcommand{\teacherone}{Thầy Bùi Tiến Lên}
+\newcommand{\teachertwo}{Thầy Lê Nhựt Nam}
+
+
+% Header
+\lhead{\reportname}
+\rhead{
+\coursename
+}
+
+% Footer
+% \newcommand{\leftfooter}{\LaTeX\ by \href{https://github.com/trhgquan}{Quan, Tran Hoang}}
+% \lfoot{\leftfooter}
+
+% ============ DOCUMENT ============
+\renewcommand\thesection{\Roman{section}}
+\renewcommand\thesubsection{\arabic{subsection}}
+\begin{document}
+
+\pagenumbering{arabic}
+\setcounter{tocdepth}{4}
+% \pagenumbering{roman}
+\input{content/title}
+
+\tableofcontents
+
+\pagebreak
+% \listoftables
+% \pagebreak
+% \listoffigures
+% \pagebreak
+
+\include{content/introduction}
+\include{content/sub/part1}
+\include{content/sub/part2} 
+\include{content/sub/part3} 
+
+\include{content/maincontent}
+\include{ref/ref}
+
+
+\end{document}
