@@ -12,7 +12,6 @@ Run:
 """
 
 import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -21,7 +20,7 @@ from pycocotools.coco import COCO
 from ultralytics import YOLO
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from dataset import coco_to_yolo_labels, write_dataset_yaml
+from dataset import build_specialist_yolo_dataset, write_dataset_yaml
 from utils import get_paths, set_seed
 
 SEED   = 42
@@ -77,17 +76,6 @@ def build_class_specialist_annotation(
     return len(images), len(specialist_anns)
 
 
-def prepare_train_labels(data_root: Path, specialist_split: str) -> None:
-    """Copy specialist labels into labels/train/ for Ultralytics."""
-    src = data_root / "labels" / specialist_split
-    dst = data_root / "labels" / "train"
-    dst.mkdir(parents=True, exist_ok=True)
-    for txt in dst.glob("*.txt"):
-        txt.unlink()
-    for txt in src.glob("*.txt"):
-        shutil.copy2(txt, dst / txt.name)
-
-
 def train_specialist(
     class_name: str,
     category_id: int,
@@ -108,12 +96,18 @@ def train_specialist(
         print(f"  SKIP — no training images for {class_name}")
         return out_root / "specialists" / class_name.replace("-", "_") / "weights" / "best.pt"
 
-    specialist_split = f"specialist_{class_name.replace('-', '_')}"
-    coco_to_yolo_labels(specialist_ann, data_root, specialist_split, force=True)
-    prepare_train_labels(data_root, specialist_split)
+    specialist_root = build_specialist_yolo_dataset(
+        specialist_ann, data_root, class_name, seed=SEED, force=True
+    )
 
     yaml_path = out_root / f"specialist_{class_name.replace('-', '_')}.yaml"
-    write_dataset_yaml(yaml_path, data_root, nc=1, names=[class_name])
+    write_dataset_yaml(
+        yaml_path,
+        specialist_root,
+        nc=1,
+        names=[class_name],
+        test="images/val",
+    )
 
     model = YOLO(MODEL)
     run_name = class_name.replace("-", "_")

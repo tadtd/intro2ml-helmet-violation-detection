@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import Callable, Optional
+import random
+import shutil
 
 import torch
 import torchvision.transforms.functional as TF
@@ -119,23 +121,109 @@ def coco_to_yolo_labels(
     return out_dir
 
 
+def resolve_image_path(data_root: Path, file_name: str) -> Path:
+    """Locate an image under data_root/images/{train,val,test}/."""
+    direct = data_root / "images" / file_name
+    if direct.exists():
+        return direct
+    for split in ("train", "val", "test"):
+        candidate = data_root / "images" / split / Path(file_name).name
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(f"Image not found for {file_name!r} under {data_root / 'images'}")
+
+
 def write_dataset_yaml(
     yaml_path: Path,
     data_root: Path,
     nc: int,
     names: list[str],
+    *,
+    train: str = "images/train",
+    val: str = "images/val",
+    test: str = "images/test",
 ) -> None:
     """Write an Ultralytics-compatible dataset.yaml.
 
-    Expects images at data_root/images/{train,val,test}/
-    and labels at data_root/labels/{train,val,test}/ (parallel structure).
+    Expects images and labels under parallel paths relative to data_root.
     """
     data = {
         "path": str(Path(data_root).resolve()),
-        "train": "images/train",
-        "val": "images/val",
-        "test": "images/test",
+        "train": train,
+        "val": val,
+        "test": test,
         "nc": nc,
         "names": names,
     }
     Path(yaml_path).write_text(yaml.dump(data, sort_keys=False, allow_unicode=True))
+
+
+def build_specialist_yolo_dataset(
+    specialist_ann: Path,
+    data_root: Path,
+    class_name: str,
+    *,
+    seed: int = 42,
+    val_frac: float = 0.2,
+    force: bool = True,
+) -> Path:
+    """Build a train/val YOLO dataset for one specialist model.
+
+    Creates data_root/specialist/{class}/ with symlinked images and .txt labels
+    for only the images present in specialist_ann. Returns the specialist root.
+    """
+    coco = COCO(str(specialist_ann))
+    image_ids = sorted(coco.imgs.keys())
+    if not image_ids:
+        raise ValueError(f"No images in specialist annotation: {specialist_ann}")
+
+    rng = random.Random(seed)
+    shuffled = image_ids.copy()
+    rng.shuffle(shuffled)
+    n_val = max(1, int(len(shuffled) * val_frac))
+    split_ids = {
+        "val": set(shuffled[:n_val]),
+        "train": set(shuffled[n_val:]) or set(shuffled[:1]),
+    }
+    if not split_ids["train"]:
+        split_ids["train"] = split_ids["val"]
+
+    run_name = class_name.replace("-", "_")
+    specialist_root = Path(data_root) / "specialist" / run_name
+
+    for split in ("train", "val"):
+        img_dir = specialist_root / "images" / split
+        lbl_dir = specialist_root / "labels" / split
+        if force and img_dir.exists():
+            shutil.rmtree(img_dir)
+        if force and lbl_dir.exists():
+            shutil.rmtree(lbl_dir)
+        img_dir.mkdir(parents=True, exist_ok=True)
+        lbl_dir.mkdir(parents=True, exist_ok=True)
+
+        for img_id in split_ids[split]:
+            img_info = coco.imgs[img_id]
+            src = resolve_image_path(data_root, img_info["file_name"])
+            dst = img_dir / src.name
+            if not dst.exists():
+                try:
+                    dst.symlink_to(src.resolve())
+                except OSError:
+                    shutil.copy2(src, dst)
+
+            w_img = img_info["width"]
+            h_img = img_info["height"]
+            ann_ids = coco.getAnnIds(imgIds=img_id)
+            anns = coco.loadAnns(ann_ids)
+            lines = []
+            for ann in anns:
+                x, y, w, h = ann["bbox"]
+                cx = (x + w / 2) / w_img
+                cy = (y + h / 2) / h_img
+                nw = w / w_img
+                nh = h / h_img
+                cls_id = ann["category_id"] - 1
+                lines.append(f"{cls_id} {cx:.6f} {cy:.6f} {nw:.6f} {nh:.6f}")
+            (lbl_dir / f"{src.stem}.txt").write_text("\n".join(lines))
+
+    return specialist_root
