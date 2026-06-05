@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from dataset import coco_to_yolo_labels, write_dataset_yaml
 from metrics import measure_fps
-from utils import get_paths, set_seed
+from utils import get_paths, get_train_ann_path, set_seed
 
 # ── Config ────────────────────────────────────────────────────────────────────
 SEED         = 42
@@ -45,8 +45,7 @@ def main() -> None:
 
     ann_dir = data_root / "annotations"
 
-    merged = ann_dir / "instances_train_merged.json"
-    train_ann = merged if merged.exists() else ann_dir / "instances_train.json"
+    train_ann = get_train_ann_path(data_root)
     print(f"Train annotations: {train_ann.name}")
 
     print("\nConverting COCO annotations to YOLO label format …")

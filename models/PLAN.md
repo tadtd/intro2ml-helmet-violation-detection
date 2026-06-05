@@ -130,7 +130,7 @@ train/
 ├── PLAN.md
 ├── pyproject.toml              ← uv dependencies
 │
-├── utils.py                    ← set_seed, get_paths (Kaggle auto-detect)
+├── utils.py                    ← set_seed, get_paths (reads DATA_PATH from env)
 ├── dataset.py                  ← CocoDetectionDataset, coco_to_yolo_labels, write_dataset_yaml
 ├── metrics.py                  ← evaluate_coco, measure_fps
 │
@@ -195,12 +195,24 @@ uv run python train_rtdetr.py
 
 ### 5.3 Path Resolution (`utils.get_paths`)
 
-| Variable    | Local                         | Kaggle                                      |
-|-------------|-------------------------------|---------------------------------------------|
-| `data_root` | `../data`                     | `/kaggle/input/helmet-violation-detection/data` |
-| `out_root`  | `./output`                    | `/kaggle/working`                           |
+### 5.3 Path Resolution
 
-Auto-detected via the `KAGGLE_DATA_PROXY_PROJECT` environment variable.
+Set `DATA_PATH` in a **Config** cell in your notebook (before running any `!uv run` commands):
+
+```python
+import os
+
+DATA_PATH = "/kaggle/input/your-dataset-slug"  # edit this
+os.environ["DATA_PATH"] = DATA_PATH
+```
+
+| Variable      | Local       | Kaggle |
+|---------------|-------------|--------|
+| Input dataset | `../data`   | `DATA_PATH` (you set in notebook) |
+| `data_root`   | `../data`   | `/kaggle/working/data` (writable copy; images symlinked from `DATA_PATH`) |
+| `out_root`    | `./output`  | `/kaggle/working` |
+
+After Phase 0, the merged train file is at `/kaggle/working/data/annotations/instances_train_merged.json`.
 
 ---
 
@@ -217,6 +229,11 @@ BRANCH      = 'main'
 
 from kaggle_secrets import UserSecretsClient
 GITHUB_TOKEN = UserSecretsClient().get_secret("GITHUB_TOKEN")
+
+# Config cell (after uv sync):
+import os
+DATA_PATH = "/kaggle/input/your-dataset-slug"  # edit this
+os.environ["DATA_PATH"] = DATA_PATH
 
 !git clone --single-branch --branch {BRANCH} \
     https://{GITHUB_USER}:{GITHUB_TOKEN}@github.com/{GITHUB_USER}/{REPO_NAME}.git
@@ -236,18 +253,18 @@ GITHUB_TOKEN = UserSecretsClient().get_secret("GITHUB_TOKEN")
 **`data_pipeline.ipynb`** — run Phase 0:
 
 ```bash
-!uv run python train/data_pipeline/audit.py
-!uv run python train/data_pipeline/bootstrap_train.py
-!uv run python train/data_pipeline/pseudo_label.py
-!uv run python train/data_pipeline/merge_annotations.py
+!uv run python models/data_pipeline/audit.py
+!uv run python models/data_pipeline/bootstrap_train.py
+!uv run python models/data_pipeline/pseudo_label.py
+!uv run python models/data_pipeline/merge_annotations.py
 ```
 
 **`faster-rcnn.ipynb`** / **`yolo.ipynb`** / **`rtdetr.ipynb`** — run Phase 1:
 
 ```bash
-!uv run python train/train_fasterrcnn.py
-!uv run python train/train_yolo.py
-!uv run python train/train_rtdetr.py
+!uv run python models/train_fasterrcnn.py
+!uv run python models/train_yolo.py
+!uv run python models/train_rtdetr.py
 ```
 
 ---
