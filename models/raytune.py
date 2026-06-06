@@ -44,6 +44,16 @@ FINAL_RESULTS = {
     "yolo": "yolo_final_results.json",
     "rtdetr": "rtdetr_final_results.json",
 }
+# Faster R-CNN reports val_loss each epoch; YOLO/RT-DETR report val_mAP50_95 once at trial end.
+TUNE_METRICS: dict[str, tuple[str, str]] = {
+    "fasterrcnn": ("val_loss", "min"),
+    "yolo": ("val_mAP50_95", "max"),
+    "rtdetr": ("val_mAP50_95", "max"),
+}
+
+
+def tune_metric(model: str) -> tuple[str, str]:
+    return TUNE_METRICS[model]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -141,6 +151,7 @@ def make_trainable(model: str, seed: int, tune_epochs: int):
         trial_id = ray_train.get_context().get_trial_id()
 
         if model == "fasterrcnn":
+            args.num_workers = 0  # Ray trials + DataLoader workers often crash on Kaggle
 
             def on_epoch_end(epoch: int, *, val_loss: float) -> None:
                 ray_train.report({
@@ -154,6 +165,12 @@ def make_trainable(model: str, seed: int, tune_epochs: int):
                 eval_splits=("val",),
                 save_checkpoint=False,
             )
+            ray_train.report({
+                "val_loss": metrics["val_loss"],
+                "val_mAP50_95": metrics["val_mAP50_95"],
+                "val_mAP50": metrics["val_mAP50"],
+                "training_iteration": tune_epochs,
+            })
         elif model == "yolo":
             metrics = run_yolo(
                 args,
@@ -161,6 +178,11 @@ def make_trainable(model: str, seed: int, tune_epochs: int):
                 save_checkpoint=False,
                 run_name=f"yolo_tune_{trial_id}",
             )
+            ray_train.report({
+                "val_mAP50_95": metrics["val_mAP50_95"],
+                "val_mAP50": metrics["val_mAP50"],
+                "training_iteration": tune_epochs,
+            })
         else:
             metrics = run_rtdetr(
                 args,
@@ -168,32 +190,51 @@ def make_trainable(model: str, seed: int, tune_epochs: int):
                 save_checkpoint=False,
                 run_name=f"rtdetr_tune_{trial_id}",
             )
-
-        ray_train.report({
-            "val_mAP50_95": metrics["val_mAP50_95"],
-            "val_mAP50": metrics["val_mAP50"],
-            "training_iteration": tune_epochs,
-        })
+            ray_train.report({
+                "val_mAP50_95": metrics["val_mAP50_95"],
+                "val_mAP50": metrics["val_mAP50"],
+                "training_iteration": tune_epochs,
+            })
 
     return trainable
+
+
+def _raise_if_no_best(result: tune.ResultGrid, metric: str, mode: str):
+    try:
+        return result.get_best_result(metric=metric, mode=mode)
+    except RuntimeError as exc:
+        errors = [str(r.error) for r in result if r.error]
+        msg = (
+            f"No trial reported a valid '{metric}' ({mode}). "
+            "Check Ray trial logs above for failures."
+        )
+        if errors:
+            msg += f"\nSample errors ({min(3, len(errors))} of {len(errors)}):\n"
+            msg += "\n".join(errors[:3])
+        raise RuntimeError(msg) from exc
 
 
 def run_tune_phase(args: argparse.Namespace, storage_path: Path) -> dict:
     tune_epochs = args.tune_epochs if args.tune_epochs is not None else args.epochs
     trainable = make_trainable(args.model, args.seed, tune_epochs)
+    metric, mode = tune_metric(args.model)
 
-    scheduler = ASHAScheduler(
-        max_t=tune_epochs,
-        grace_period=1,
-        reduction_factor=2,
-    )
+    scheduler = None
+    if args.model == "fasterrcnn":
+        scheduler = ASHAScheduler(
+            max_t=tune_epochs,
+            grace_period=1,
+            reduction_factor=2,
+            metric=metric,
+            mode=mode,
+        )
 
     tuner = tune.Tuner(
         trainable,
         param_space=search_space(args.model),
         tune_config=tune.TuneConfig(
-            metric="val_mAP50_95",
-            mode="max",
+            metric=metric,
+            mode=mode,
             num_samples=args.num_samples,
             max_concurrent_trials=args.max_concurrent,
             scheduler=scheduler,
@@ -205,17 +246,22 @@ def run_tune_phase(args: argparse.Namespace, storage_path: Path) -> dict:
     )
 
     print(f"\n=== Phase 1: Ray Tune on validation ({args.num_samples} trials) ===")
+    print(f"Tune metric: {metric} ({mode})")
     result = tuner.fit()
-    best = result.get_best_result(metric="val_mAP50_95", mode="max")
+    best = _raise_if_no_best(result, metric, mode)
 
     best_config = config_to_dict(args.model, best.config)
-    best_config["val_mAP50_95"] = best.metrics["val_mAP50_95"]
-    if "val_mAP50" in best.metrics:
+    if best.metrics.get("val_mAP50_95") is not None:
+        best_config["val_mAP50_95"] = best.metrics["val_mAP50_95"]
+    if best.metrics.get("val_mAP50") is not None:
         best_config["val_mAP50"] = best.metrics["val_mAP50"]
+    if best.metrics.get("val_loss") is not None:
+        best_config["val_loss"] = best.metrics["val_loss"]
 
     config_path = storage_path / "best_config.json"
     config_path.write_text(json.dumps(best_config, indent=2))
-    print(f"\nBest config (val mAP@0.5:0.95 = {best_config['val_mAP50_95']:.4f}):")
+    score = best.metrics.get(metric)
+    print(f"\nBest config ({metric} = {score}):")
     print(json.dumps(best_config, indent=2))
     print(f"Saved → {config_path}")
     return best_config
