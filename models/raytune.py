@@ -14,12 +14,13 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import os
 import sys
 from argparse import Namespace
 from pathlib import Path
 
 import ray
-from ray import train as ray_train
+import torch
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 
@@ -54,6 +55,48 @@ TUNE_METRICS: dict[str, tuple[str, str]] = {
 
 def tune_metric(model: str) -> tuple[str, str]:
     return TUNE_METRICS[model]
+
+
+def gpu_count() -> int:
+    return torch.cuda.device_count() if torch.cuda.is_available() else 0
+
+
+def trial_resources() -> dict:
+    """Ray trial resource bundle; request 1 GPU per trial when CUDA is available."""
+    if gpu_count() > 0:
+        return {"gpu": 1, "cpu": 2}
+    return {"cpu": 2}
+
+
+def build_runtime_env() -> dict:
+    """Reuse the driver uv venv inside Ray workers.
+
+    Without this, Ray workers run ``uv sync`` in an isolated cwd, create a fresh
+    ``.venv`` without CUDA torch, and trials fall back to CPU.
+    """
+    venv = Path(sys.executable).resolve().parent.parent
+    env_vars: dict[str, str] = {
+        "VIRTUAL_ENV": str(venv),
+        "UV_PROJECT_ENVIRONMENT": str(venv),
+    }
+    for key in (
+        "PATH",
+        "LD_LIBRARY_PATH",
+        "CUDA_VISIBLE_DEVICES",
+        "DATA_PATH",
+        "MPLBACKEND",
+        "KAGGLE_DATA_PROXY_PROJECT",
+    ):
+        value = os.environ.get(key)
+        if value:
+            env_vars[key] = value
+
+    repo_root = Path(__file__).resolve().parent.parent
+    return {
+        "py_executable": sys.executable,
+        "env_vars": env_vars,
+        "working_dir": str(repo_root),
+    }
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -148,13 +191,12 @@ def make_trainable(model: str, seed: int, tune_epochs: int):
 
     def trainable(config: dict) -> None:
         args = apply_config(model, base, config)
-        trial_id = ray_train.get_context().get_trial_id()
 
         if model == "fasterrcnn":
             args.num_workers = 0  # Ray trials + DataLoader workers often crash on Kaggle
 
             def on_epoch_end(epoch: int, *, val_loss: float) -> None:
-                ray_train.report({
+                tune.report({
                     "val_loss": val_loss,
                     "training_iteration": epoch,
                 })
@@ -165,32 +207,34 @@ def make_trainable(model: str, seed: int, tune_epochs: int):
                 eval_splits=("val",),
                 save_checkpoint=False,
             )
-            ray_train.report({
+            tune.report({
                 "val_loss": metrics["val_loss"],
                 "val_mAP50_95": metrics["val_mAP50_95"],
                 "val_mAP50": metrics["val_mAP50"],
                 "training_iteration": tune_epochs,
             })
         elif model == "yolo":
+            trial_id = tune.get_context().get_trial_id()
             metrics = run_yolo(
                 args,
                 eval_splits=("val",),
                 save_checkpoint=False,
                 run_name=f"yolo_tune_{trial_id}",
             )
-            ray_train.report({
+            tune.report({
                 "val_mAP50_95": metrics["val_mAP50_95"],
                 "val_mAP50": metrics["val_mAP50"],
                 "training_iteration": tune_epochs,
             })
         else:
+            trial_id = tune.get_context().get_trial_id()
             metrics = run_rtdetr(
                 args,
                 eval_splits=("val",),
                 save_checkpoint=False,
                 run_name=f"rtdetr_tune_{trial_id}",
             )
-            ray_train.report({
+            tune.report({
                 "val_mAP50_95": metrics["val_mAP50_95"],
                 "val_mAP50": metrics["val_mAP50"],
                 "training_iteration": tune_epochs,
@@ -216,7 +260,10 @@ def _raise_if_no_best(result: tune.ResultGrid, metric: str, mode: str):
 
 def run_tune_phase(args: argparse.Namespace, storage_path: Path) -> dict:
     tune_epochs = args.tune_epochs if args.tune_epochs is not None else args.epochs
-    trainable = make_trainable(args.model, args.seed, tune_epochs)
+    trainable = tune.with_resources(
+        make_trainable(args.model, args.seed, tune_epochs),
+        trial_resources(),
+    )
     metric, mode = tune_metric(args.model)
 
     scheduler = None
@@ -245,6 +292,7 @@ def run_tune_phase(args: argparse.Namespace, storage_path: Path) -> dict:
 
     print(f"\n=== Phase 1: Ray Tune on validation ({args.num_samples} trials) ===")
     print(f"Tune metric: {metric} ({mode})")
+    print(f"Concurrent trials: {args.max_concurrent} (1 GPU per trial)")
     result = tuner.fit()
     best = _raise_if_no_best(result, metric, mode)
 
@@ -298,7 +346,27 @@ def main() -> None:
     )
     storage_path.mkdir(parents=True, exist_ok=True)
 
-    ray.init(ignore_reinit_error=True, include_dashboard=False)
+    n_gpus = gpu_count()
+    if n_gpus == 0:
+        print("WARNING: CUDA not visible — Ray Tune trials will run on CPU. ")
+    else:
+        print(f"CUDA available: {n_gpus} GPU(s) — each trial uses 1 GPU")
+
+    if n_gpus and args.max_concurrent > n_gpus:
+        print(
+            f"WARNING: --max-concurrent {args.max_concurrent} > {n_gpus} GPU(s); "
+            "extra trials will queue until a GPU is free."
+        )
+
+    runtime_env = build_runtime_env()
+    print(f"Ray runtime python: {runtime_env['py_executable']}")
+
+    ray.init(
+        ignore_reinit_error=True,
+        include_dashboard=False,
+        num_gpus=n_gpus or None,
+        runtime_env=runtime_env,
+    )
 
     best_config = run_tune_phase(args, storage_path)
 
