@@ -225,8 +225,6 @@ def run_tune_phase(args: argparse.Namespace, storage_path: Path) -> dict:
             max_t=tune_epochs,
             grace_period=1,
             reduction_factor=2,
-            metric=metric,
-            mode=mode,
         )
 
     tuner = tune.Tuner(
