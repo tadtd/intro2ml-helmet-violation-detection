@@ -8,6 +8,7 @@ import torch
 
 TRAIN_ANN_FILES = (
     "instances_train.json",
+    "instances_train_merged.json",
     "instances_val.json",
     "instances_test.json",
 )
