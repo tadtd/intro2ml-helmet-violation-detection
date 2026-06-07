@@ -257,8 +257,10 @@ Same flags as YOLO; defaults differ:
 | `--model` | `rtdetr-l.pt` |
 | `--batch` | 8 |
 | `--lr0` | 1e-4 |
+| `--optimizer` | `AdamW` |
+| `--force-labels` | off |
 
-Uses `RTDETR(...)` instead of `YOLO(...)`.
+Uses `RTDETR(...)` instead of `YOLO(...)`. RT-DETR fixes `optimizer=AdamW` by default so `lr0`, `momentum`, and `weight_decay` are actually honored instead of being ignored by Ultralytics `optimizer=auto`.
 
 ---
 
@@ -285,7 +287,7 @@ Phase 1 optimizes **`val_mAP50_95`** (max) with ASHA scheduler.
 | `lrf` | uniform [0.01, 0.2] |
 | `weight_decay` | log-uniform [1e-5, 1e-3] |
 
-**RT-DETR:** same as YOLO except `lr0` ∈ [1e-5, 1e-3], `batch` ∈ {4, 8, 16}.
+**RT-DETR:** same as YOLO except `lr0` ∈ [1e-5, 1e-3], `batch` ∈ {2, 4, 8}, and fixed `optimizer=AdamW`.
 
 Example `best_config.json`:
 

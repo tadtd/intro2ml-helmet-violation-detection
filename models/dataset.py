@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -88,14 +89,27 @@ def coco_to_yolo_labels(
     out_dir = Path(data_root) / "labels" / split
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if not force and list(out_dir.glob("*.txt")):
-        return out_dir
-
-    if force:
-        for txt in out_dir.glob("*.txt"):
-            txt.unlink()
-
     coco = COCO(str(ann_json))
+    ann_stat = Path(ann_json).stat()
+    source_info = {
+        "annotation": str(Path(ann_json).resolve()),
+        "size": ann_stat.st_size,
+        "mtime_ns": ann_stat.st_mtime_ns,
+        "image_count": len(coco.imgs),
+    }
+    marker = out_dir / ".source.json"
+    existing_txt = list(out_dir.glob("*.txt"))
+
+    if not force and marker.exists() and len(existing_txt) == len(coco.imgs):
+        try:
+            if json.loads(marker.read_text()) == source_info:
+                return out_dir
+        except json.JSONDecodeError:
+            pass
+
+    for txt in existing_txt:
+        txt.unlink()
+
     for img_id, img_info in coco.imgs.items():
         w_img = img_info["width"]
         h_img = img_info["height"]
@@ -116,6 +130,7 @@ def coco_to_yolo_labels(
         stem = Path(img_info["file_name"]).stem
         (out_dir / f"{stem}.txt").write_text("\n".join(lines))
 
+    marker.write_text(json.dumps(source_info, indent=2))
     return out_dir
 
 

@@ -41,25 +41,41 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lrf", type=float, default=0.01)
     parser.add_argument("--momentum", type=float, default=0.937)
     parser.add_argument("--weight-decay", type=float, default=5e-4)
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="AdamW",
+        help="Ultralytics optimizer. Use AdamW so lr0/momentum/weight_decay are honored.",
+    )
+    parser.add_argument(
+        "--force-labels",
+        action="store_true",
+        help="Rebuild YOLO label files even if data/labels/{split}/ already exists.",
+    )
     return parser.parse_args(argv)
 
 
 def extract_metrics(r) -> dict:
+    mean_recall = float(r.box.mr)
     return {
         "mAP50": float(r.box.map50),
         "mAP50_95": float(r.box.map),
-        "AR100": float(r.box.mr),
+        # Ultralytics exposes mean recall as box.mr. Keep AR100 for backward
+        # compatibility with existing result JSON consumers, but also store the
+        # precise metric name.
+        "mean_recall": mean_recall,
+        "AR100": mean_recall,
     }
 
 
-def prepare_labels(data_root: Path, train_ann: Path, ann_dir: Path) -> Path:
+def prepare_labels(data_root: Path, train_ann: Path, ann_dir: Path, *, force: bool = False) -> Path:
     print("\nConverting COCO annotations to YOLO label format …")
     for split, ann_file in [
         ("train", train_ann),
         ("val", ann_dir / "instances_val.json"),
         ("test", ann_dir / "instances_test.json"),
     ]:
-        coco_to_yolo_labels(ann_file, data_root, split)
+        coco_to_yolo_labels(ann_file, data_root, split, force=force)
     return ann_dir
 
 
@@ -83,7 +99,7 @@ def run(
     train_ann = get_train_ann_path(data_root)
     print(f"Train annotations: {train_ann.name}")
 
-    prepare_labels(data_root, train_ann, ann_dir)
+    prepare_labels(data_root, train_ann, ann_dir, force=args.force_labels)
     yaml_path = out_root / "dataset.yaml"
     write_dataset_yaml(yaml_path, data_root, NC, NAMES)
     print(f"Dataset YAML → {yaml_path}")
@@ -103,6 +119,7 @@ def run(
             lrf=args.lrf,
             momentum=args.momentum,
             weight_decay=args.weight_decay,
+            optimizer=args.optimizer,
             device=device,
             seed=args.seed,
             project=str(out_root),

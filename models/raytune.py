@@ -40,6 +40,9 @@ HYPERPARAM_KEYS = {
     "yolo": ("lr0", "batch", "lrf", "weight_decay"),
     "rtdetr": ("lr0", "batch", "lrf", "weight_decay"),
 }
+FIXED_CONFIG = {
+    "rtdetr": {"optimizer": "AdamW"},
+}
 FINAL_RESULTS = {
     "fasterrcnn": "fasterrcnn_final_results.json",
     "yolo": "yolo_final_results.json",
@@ -154,6 +157,8 @@ def apply_config(model: str, base: Namespace, config: dict) -> Namespace:
         args.batch = int(config["batch"])
         args.lrf = config["lrf"]
         args.weight_decay = config["weight_decay"]
+        if model == "rtdetr" and "optimizer" in config:
+            args.optimizer = config["optimizer"]
     return args
 
 
@@ -175,7 +180,7 @@ def search_space(model: str) -> dict:
         }
     return {
         "lr0": tune.loguniform(1e-5, 1e-3),
-        "batch": tune.choice([4, 8, 16]),
+        "batch": tune.choice([2, 4, 8]),
         "lrf": tune.uniform(0.01, 0.2),
         "weight_decay": tune.loguniform(1e-5, 1e-3),
     }
@@ -297,6 +302,7 @@ def run_tune_phase(args: argparse.Namespace, storage_path: Path) -> dict:
     best = _raise_if_no_best(result, metric, mode)
 
     best_config = config_to_dict(args.model, best.config)
+    best_config.update(FIXED_CONFIG.get(args.model, {}))
     if best.metrics.get("val_mAP50_95") is not None:
         best_config["val_mAP50_95"] = best.metrics["val_mAP50_95"]
     if best.metrics.get("val_mAP50") is not None:
@@ -377,6 +383,7 @@ def main() -> None:
     metrics = run_final_train_phase(args, best_config)
 
     hyperparams = {k: best_config[k] for k in HYPERPARAM_KEYS[args.model]}
+    hyperparams.update(FIXED_CONFIG.get(args.model, {}))
     final_results = {
         "best_config": hyperparams,
         "test": {
