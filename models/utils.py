@@ -59,7 +59,8 @@ def _setup_kaggle_working_data(input_root: Path, out_root: Path) -> Path:
     work_images = work_data / "images"
     input_images = input_root / "images"
     if input_images.is_dir() and not work_images.exists():
-        work_images.symlink_to(input_images, target_is_directory=True)
+        print(f"Copying images from {input_images} to {work_images} ...")
+        shutil.copytree(input_images, work_images)
 
     src_ann = input_root / "annotations"
     dst_ann = work_data / "annotations"
