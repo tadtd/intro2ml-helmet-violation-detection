@@ -16,6 +16,9 @@ import copy
 import json
 import os
 import sys
+
+# Disable strict metric checking since Ultralytics auto-reports epoch metrics lacking our target key
+os.environ["TUNE_DISABLE_STRICT_METRIC_CHECKING"] = "1"
 from argparse import Namespace
 from pathlib import Path
 
@@ -78,6 +81,7 @@ def build_runtime_env() -> dict:
     env_vars: dict[str, str] = {
         "VIRTUAL_ENV": str(venv),
         "UV_PROJECT_ENVIRONMENT": str(venv),
+        "TUNE_DISABLE_STRICT_METRIC_CHECKING": "1",
     }
     for key in (
         "PATH",
