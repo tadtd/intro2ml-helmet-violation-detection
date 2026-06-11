@@ -33,7 +33,7 @@ DEFAULT_RUN_NAME = "yolo_train"
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train YOLOv8 on helmet violation data.")
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--model", type=str, default="yolov8m.pt")
+    parser.add_argument("--model", type=str, default="yolo26m.pt")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch", type=int, default=16)
     parser.add_argument("--imgsz", type=int, default=640)
