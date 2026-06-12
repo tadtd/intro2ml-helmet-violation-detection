@@ -1,0 +1,9 @@
+path: /home/tamle/intro2ml-helmet-violation-detection/data
+train: images/train
+val: images/val
+test: images/test
+nc: 3
+names:
+- motorbike
+- helmet
+- non-helmet
