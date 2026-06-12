@@ -101,6 +101,9 @@ def run(
     if train:
         print(f"\nTraining {args.model} for {args.epochs} epochs …")
         model = RTDETR(args.model)
+        # Clear default ray callbacks so they don't auto-report during intermediate epochs
+        for event, cb_list in list(model.callbacks.items()):
+            model.callbacks[event] = [cb for cb in cb_list if "ray" not in getattr(cb, "__module__", "")]
         model.train(
             data=str(yaml_path),
             epochs=args.epochs,
