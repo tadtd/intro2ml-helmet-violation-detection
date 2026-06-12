@@ -195,7 +195,7 @@ def make_trainable(model: str, seed: int, tune_epochs: int):
         if model == "fasterrcnn":
             args.num_workers = 0  # Ray trials + DataLoader workers often crash on Kaggle
 
-            def on_epoch_end(epoch: int, *, val_loss: float) -> None:
+            def on_epoch_end(epoch: int, *, val_loss: float, **_: float) -> None:
                 tune.report({
                     "val_loss": val_loss,
                     "training_iteration": epoch,

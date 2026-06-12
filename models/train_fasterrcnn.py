@@ -29,7 +29,19 @@ from tqdm import tqdm
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from dataset import CocoDetectionDataset
-from metrics import evaluate_coco, measure_fps
+from metrics import (
+    detection_confusion_matrix,
+    evaluate_coco,
+    measure_fps,
+    precision_recall_f1_from_confusion,
+)
+from plots import (
+    learning_curve_comment,
+    plot_confusion_matrix,
+    plot_learning_curves,
+    write_confusion_matrix_csv,
+    write_learning_curves_csv,
+)
 from utils import get_paths, get_train_ann_path, set_seed
 
 NC = 3
@@ -48,6 +60,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lr-step", type=int, default=10)
     parser.add_argument("--lr-gamma", type=float, default=0.1)
     parser.add_argument("--num-workers", type=int, default=2)
+    parser.add_argument("--conf-thres", type=float, default=0.25)
+    parser.add_argument("--iou-thres", type=float, default=0.5)
     return parser.parse_args(argv)
 
 
@@ -172,6 +186,7 @@ def run(
     ckpt_path = out_root / CKPT_NAME
     model = build_model(NC).to(device)
     last_val_loss: float | None = None
+    history: list[dict] = []
 
     if train:
         optimizer = SGD(
@@ -189,9 +204,15 @@ def run(
             val_loss = compute_val_loss(model, val_loader, device)
             last_val_loss = val_loss
             scheduler.step()
+            history.append({
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "val_loss": val_loss,
+                "lr": scheduler.get_last_lr()[0],
+            })
             print(f"Epoch {epoch:3d}/{args.epochs}  train={train_loss:.4f}  val={val_loss:.4f}")
             if on_epoch_end is not None:
-                on_epoch_end(epoch, val_loss=val_loss)
+                on_epoch_end(epoch, train_loss=train_loss, val_loss=val_loss)
             if save_checkpoint and val_loss < best_val_loss:
                 best_val_loss = val_loss
                 torch.save(model.state_dict(), ckpt_path)
@@ -205,6 +226,8 @@ def run(
 
     val_metrics: dict | None = None
     test_metrics: dict | None = None
+    val_preds: list[dict] | None = None
+    test_preds: list[dict] | None = None
 
     if "val" in eval_splits:
         print("\nEvaluating on val …")
@@ -230,6 +253,9 @@ def run(
         "fps": round(fps, 2),
         "val": val_metrics,
         "test": test_metrics,
+        "history": history,
+        "val_predictions": val_preds,
+        "test_predictions": test_preds,
     }
 
 
@@ -237,11 +263,37 @@ def main() -> None:
     args = parse_args()
     metrics = run(args)
 
-    out_root = get_paths()[1]
+    data_root, out_root = get_paths()
     if metrics["val"] and metrics["test"]:
+        history = metrics.get("history") or []
+        if history:
+            history_json = out_root / "fasterrcnn_history.json"
+            history_json.write_text(json.dumps(history, indent=2))
+            write_learning_curves_csv(history, out_root / "fasterrcnn_learning_curves.csv")
+            plot_learning_curves(history, out_root / "fasterrcnn_learning_curves.png")
+            (out_root / "fasterrcnn_learning_curve_comment.txt").write_text(
+                learning_curve_comment(history),
+            )
+
+        test_preds = metrics.get("test_predictions") or []
+        cm = detection_confusion_matrix(
+            data_root / "annotations" / "instances_test.json",
+            test_preds,
+            num_classes=NC,
+            iou_threshold=args.iou_thres,
+            score_threshold=args.conf_thres,
+        )
+        cls_metrics = precision_recall_f1_from_confusion(cm, NC)
+        write_confusion_matrix_csv(cm, NAMES, out_root / "fasterrcnn_confusion_matrix.csv")
+        plot_confusion_matrix(cm, NAMES, out_root / "fasterrcnn_confusion_matrix.png")
+
         results = {
             "val": metrics["val"],
             "test": metrics["test"],
+            "test_classification_metrics": cls_metrics,
+            "confusion_matrix": cm.tolist(),
+            "confusion_matrix_iou_threshold": args.iou_thres,
+            "confusion_matrix_score_threshold": args.conf_thres,
             "fps": metrics["fps"],
         }
         out_json = out_root / "fasterrcnn_results.json"

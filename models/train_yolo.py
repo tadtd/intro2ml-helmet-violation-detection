@@ -41,11 +41,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lrf", type=float, default=0.01)
     parser.add_argument("--momentum", type=float, default=0.937)
     parser.add_argument("--weight-decay", type=float, default=5e-4)
+    parser.add_argument("--run-name", type=str, default=DEFAULT_RUN_NAME)
     return parser.parse_args(argv)
 
 
 def extract_metrics(r) -> dict:
+    precision = float(r.box.mp)
+    recall = float(r.box.mr)
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
     return {
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
         "mAP50": float(r.box.map50),
         "mAP50_95": float(r.box.map),
         "AR100": float(r.box.mr),
@@ -109,6 +116,7 @@ def run(
             name=run_name,
             exist_ok=True,
             verbose=True,
+            plots=True,
         )
         if save_checkpoint:
             best_pt = out_root / run_name / "weights" / "best.pt"
@@ -128,12 +136,30 @@ def run(
 
     if "val" in eval_splits:
         print("\nEvaluating on val split …")
-        val_results = model.val(data=str(yaml_path), split="val", device=device, verbose=False)
+        val_results = model.val(
+            data=str(yaml_path),
+            split="val",
+            device=device,
+            verbose=False,
+            plots=True,
+            project=str(out_root),
+            name=f"{run_name}_val",
+            exist_ok=True,
+        )
         val_metrics = extract_metrics(val_results)
 
     if "test" in eval_splits:
         print("\nEvaluating on test split …")
-        test_results = model.val(data=str(yaml_path), split="test", device=device, verbose=False)
+        test_results = model.val(
+            data=str(yaml_path),
+            split="test",
+            device=device,
+            verbose=False,
+            plots=True,
+            project=str(out_root),
+            name=f"{run_name}_test",
+            exist_ok=True,
+        )
         test_metrics = extract_metrics(test_results)
 
     fps = 0.0
@@ -159,7 +185,7 @@ def run(
 
 def main() -> None:
     args = parse_args()
-    metrics = run(args)
+    metrics = run(args, run_name=args.run_name)
 
     out_root = get_paths()[1]
     if metrics["val"] and metrics["test"]:
@@ -175,6 +201,9 @@ def main() -> None:
         print(f"Val   mAP@0.5:0.95: {metrics['val_mAP50_95']:.4f}")
         print(f"Test  mAP@0.5:      {metrics['test_mAP50']:.4f}")
         print(f"Test  mAP@0.5:0.95: {metrics['test_mAP50_95']:.4f}")
+        print(f"Test  Precision:    {metrics['test']['precision']:.4f}")
+        print(f"Test  Recall:       {metrics['test']['recall']:.4f}")
+        print(f"Test  F1:           {metrics['test']['f1']:.4f}")
         print(f"FPS:                {metrics['fps']:.1f}")
         print(f"\nResults → {out_json}")
 
