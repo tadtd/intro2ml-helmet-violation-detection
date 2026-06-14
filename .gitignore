@@ -210,3 +210,5 @@ __marimo__/
 /data/*/
 notes/
 *.pth
+*.pt
+docs/*.pdf
