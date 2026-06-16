@@ -216,3 +216,6 @@ notes/
 *.pth
 *.pt
 docs/*.pdf
+
+# agents
+.agents/
