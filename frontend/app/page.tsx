@@ -10,16 +10,19 @@ const workflows = [
     title: "Video upload",
     description: "Queue offline processing with YOLO, RT-DETR, or Faster R-CNN.",
     action: "Upload",
+    href: "/upload",
   },
   {
     title: "Camera realtime",
     description: "Stream frames through the FastAPI WebSocket for live checks.",
     action: "Open camera",
+    href: "/camera",
   },
   {
     title: "Violations",
     description: "Review captured images, timestamps, track IDs, and model source.",
     action: "View dashboard",
+    href: "/dashboard",
   },
 ];
 
@@ -67,9 +70,12 @@ export default function Page() {
                 <p className="mt-3 min-h-16 text-sm leading-6 text-[#53635b]">
                   {item.description}
                 </p>
-                <button className="mt-5 rounded-md border border-[#1e5a45] px-3 py-2 text-sm font-semibold text-[#1e5a45]">
+                <a
+                  className="mt-5 inline-flex rounded-md border border-[#1e5a45] px-3 py-2 text-sm font-semibold text-[#1e5a45]"
+                  href={item.href}
+                >
                   {item.action}
-                </button>
+                </a>
               </article>
             ))}
           </div>
