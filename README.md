@@ -5,8 +5,8 @@ Redis, Supabase, and ONNX Runtime.
 
 ## Setup
 
-1. Create a Supabase project and run `backend/supabase_schema.sql` in the SQL
-   editor.
+1. Create a Supabase project, create `videos` and `violations` storage buckets,
+   and run the modules in `backend/supabase/schema/` in order.
 2. Copy `.env.example` to `.env` and fill Supabase values.
 3. Start Redis, API, and worker:
 

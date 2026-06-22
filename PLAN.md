@@ -1,202 +1,351 @@
-# Plan: Helmet Violation Detection System
+# Helmet Violation Detection — PLAN.md
 
-## 1. Overview
+## 1. Goal
 
-A web application that allows:
+Build a web system for detecting motorcycle helmet violations from uploaded
+videos and live camera streams. The system supports model comparison across
+YOLO, RT-DETR, and Faster R-CNN, stores violation evidence, and exposes a
+dashboard for operators and admins.
 
-- Uploading a video to detect violations (choosing one of 3 models: YOLO / RT-DETR / Faster R-CNN)
-- Continuous real-time camera detection
-- A dashboard showing detected violations (image, timestamp, track_id, model used)
-- Login and role-based access (admin / operator)
+## 2. Repository Structure
 
-## 2. Tech Stack
-
-| Component | Technology |
-| --- | --- |
-| Frontend | Next.js |
-| Backend API | FastAPI |
-| Task queue (video upload processing) | Celery + Redis |
-| Database | Supabase (Postgres) — free tier |
-| Auth | Supabase Auth — free tier |
-| Storage (violation images) | Supabase Storage — free tier |
-| Realtime dashboard updates | Supabase Realtime — free tier |
-| Containerization | Docker |
-| Package manager | uv (`pyproject.toml` + `uv.lock`, no `requirements.txt`) |
-| Deployment compute | GCP (GKE) — using $300 free trial |
-| CI/CD | GitHub Actions |
-| Models | YOLO, RT-DETR, Faster R-CNN — converted to ON |
-
-## 3. Overall Architecture
-
-```
-Next.js
-  ├── Login/Signup → Supabase Auth
-  ├── "Upload video" tab → FastAPI /videos/upload → Celery task
-  ├── "Camera realtime" tab → WebSocket → FastAPI live inference
-  └── Violations dashboard → Supabase Realtime subscription + REST API
-
-FastAPI (GKE)
-  ├── Middleware: verify Supabase JWT
-  ├── /videos/upload  → push task to Celery (Redis broker)
-  ├── /ws/camera       → real-time inference, log violations
-  └── /violations      → query Supabase Postgres
-
-Celery worker (GKE, autoscaled by queue length)
-  ├── Load ONNX model based on model_name (yolo/rtdetr/fasterrcnn)
-  ├── Inference via ONNX Runtime (no PyTorch/torch needed) + tracking
-  ├── Association logic: link helmet/non-helmet boxes to motorbike boxes
-  ├── Save cropped violation images → Supabase Storage
-  └── Insert violation metadata → Supabase Postgres
-
-Redis (GKE) → Celery broker
-```
-
-## 4. Database Schema (Supabase Postgres)
-
-```sql
--- auth.users: provided by Supabase Auth
-
-create table profiles (
-  id uuid references auth.users primary key,
-  role text default 'operator', -- 'admin' | 'operator'
-  full_name text
-);
-
-create table videos (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id),
-  filename text,
-  model_used text,
-  status text default 'pending', -- pending | processing | done
-  created_at timestamptz default now()
-);
-
-create table violations (
-  id uuid primary key default gen_random_uuid(),
-  video_id uuid references videos(id), -- null if from real-time camera
-  user_id uuid references auth.users(id),
-  track_id int,
-  model_used text,
-  image_url text,
-  timestamp timestamptz default now()
-);
-
--- Row Level Security
-alter table violations enable row level security;
-create policy "view own or admin" on violations
-  for select using (
-    auth.uid() = user_id
-    or exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-  );
-```
-
-## 5. Violation Detection Logic (shared across all 3 models)
-
-1. Normalize the output of all 3 models into a common format:
-    
-    ```python
-    [{"class": "non-helmet", "box": [x1,y1,x2,y2], "conf": 0.92}, ...]
-    ```
-    
-2. Tracking: assign a persistent `track_id` to each motorbike across frames
-    - YOLO/RT-DETR: use built-in `.track()` (ByteTrack/BoT-SORT)
-    - Faster R-CNN: implement a simple custom IoU-tracker
-3. Association: for each `motorbike` box, find the nearest `helmet`/`non-helmet` box (via IoU or centroid distance)
-4. Decision: if a `motorbike` is linked to a `non-helmet` box → violation
-5. Save: cropped violation image + track_id + timestamp + model_used
-
-## 6. Project Structure (Monorepo)
-
-```
-project/
-├── frontend/                  # Next.js
-│   ├── app/
-│   │   ├── login/
-│   │   ├── dashboard/
-│   │   ├── upload/
-│   │   └── camera/
-│   └── lib/supabase.ts
+```text
+intro2ml-helmet-violation-detection/
+├── README.md
+├── PLAN.md
+├── docker-compose.yml
+├── .env.example
 ├── backend/
+│   ├── README.md
+│   ├── pyproject.toml
+│   ├── uv.lock
+│   ├── Dockerfile.api
+│   ├── Dockerfile.worker
 │   ├── app/
 │   │   ├── main.py
-│   │   ├── auth.py             # verify Supabase JWT
+│   │   ├── config.py
+│   │   ├── auth.py
+│   │   ├── celery_app.py
+│   │   ├── tasks.py
+│   │   ├── tracker.py
+│   │   ├── violation_logic.py
+│   │   ├── db/
+│   │   │   ├── client.py
+│   │   │   ├── profiles.py
+│   │   │   ├── storage.py
+│   │   │   ├── videos.py
+│   │   │   └── violations.py
 │   │   ├── models/
+│   │   │   ├── base.py
 │   │   │   ├── yolo_wrapper.py
 │   │   │   ├── rtdetr_wrapper.py
 │   │   │   └── fasterrcnn_wrapper.py
-│   │   ├── tracker.py          # shared IoU-tracker
-│   │   ├── violation_logic.py  # association + decision
-│   │   ├── tasks.py            # Celery tasks
-│   │   └── routes/
-│   ├── weights/                # ONNX models (converted offline)
-│   │   ├── yolo_best.onnx
-│   │   ├── rtdetr_best.onnx
-│   │   └── fasterrcnn_best.onnx
-│   ├── pyproject.toml          # uv — replaces requirements.txt
-│   ├── uv.lock
-│   ├── Dockerfile.api
-│   └── Dockerfile.worker
-├── k8s/                        # Kubernetes manifests
-│   ├── fastapi-deployment.yaml
-│   ├── celery-worker-deployment.yaml
-│   ├── redis-deployment.yaml
-│   └── nextjs-deployment.yaml
-└── .github/workflows/
-    └── deploy.yaml
+│   │   ├── routes/
+│   │   │   ├── camera.py
+│   │   │   ├── videos.py
+│   │   │   └── violations.py
+│   │   └── weights/
+│   │       └── README.md
+│   └── supabase/
+│       └── schema/
+│           ├── 01_profiles.sql
+│           ├── 02_videos.sql
+│           └── 03_violations.sql
+├── frontend/
+│   ├── package.json
+│   ├── next.config.ts
+│   ├── Dockerfile
+│   ├── app/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   ├── globals.css
+│   │   ├── login/
+│   │   │   └── page.tsx
+│   │   └── (app)/
+│   │       ├── layout.tsx
+│   │       ├── dashboard/
+│   │       │   └── page.tsx
+│   │       ├── upload/
+│   │       │   └── page.tsx
+│   │       └── camera/
+│   │           └── page.tsx
+│   └── utils/
+│       └── supabase/
+│           ├── client.ts
+│           ├── server.ts
+│           └── middleware.ts
+├── models/
+│   ├── pyproject.toml
+│   ├── train_yolo.py
+│   ├── train_rtdetr.py
+│   ├── train_fasterrcnn.py
+│   ├── dataset.py
+│   ├── metrics.py
+│   ├── plots.py
+│   ├── raytune.py
+│   └── checkpoints/
+│       ├── README.md
+│       └── convert2onnx.py
+├── crawl/
+│   ├── README.md
+│   └── scripts/
+│       ├── build_unified_coco_dataset.py
+│       ├── merge_cvat_coco_back.py
+│       └── prepare_cvat_coco_task.py
+├── data/
+├── docs/
+├── report/
+└── k8s/
 ```
 
-## 7. Implementation Phases
+## 3. Architecture
 
-### Phase 1: Foundation Setup
+```text
+Next.js frontend
+  ├── Supabase Auth — login and session management
+  ├── Upload page — sends authenticated video + model choice to FastAPI
+  ├── Dashboard — reads violations via REST, subscribes to Supabase Realtime
+  └── Camera page — streams frames to FastAPI WebSocket, draws live boxes
 
-- [ ]  Create a Supabase project (Auth, Database, Storage)
-- [ ]  Create `profiles`, `videos`, `violations` tables + RLS policies
-- [ ]  Set up monorepo, basic folder structure
+FastAPI backend
+  ├── Verifies Supabase JWTs on every request
+  ├── POST /videos/upload — saves video to Supabase Storage, enqueues Celery task
+  ├── GET  /violations   — paginated query, RLS-filtered per user role
+  └── WS   /ws/camera   — per-frame inference, saves realtime violations
 
-### Phase 2: Backend Inference
+Celery worker
+  ├── Downloads video from Supabase Storage
+  ├── Runs frame-by-frame inference with selected ONNX model
+  ├── Tracks motorbikes, associates non-helmet detections
+  ├── Uploads violation crops to Supabase Storage (violations bucket)
+  └── Writes violation rows and updates video status in Postgres
 
-- [ ]  Convert all 3 models to ONNX format (offline, one-time)
-    - YOLO/RT-DETR: `model.export(format="onnx")` via ultralytics
-    - Faster R-CNN: `torch.onnx.export(...)` via torchvision
-- [ ]  Write output-normalization wrappers for the 3 ONNX models (using `onnxruntime`)
-- [ ]  Implement shared IoU-tracker (for Faster R-CNN; YOLO/RT-DETR use built-in ByteTrack)
-- [ ]  Implement `violation_logic.py` (association + decision)
-- [ ]  Test logic on a sample video, output annotated violation images
+Supabase
+  ├── Auth     — user sessions and JWTs
+  ├── Postgres — profiles, videos, violations
+  ├── Storage  — buckets: `videos` (originals), `violations` (crops)
+  └── Realtime — dashboard live updates on violation inserts
+```
 
-### Phase 3: API & Auth
+## 4. Technology Stack
 
-- [ ]  FastAPI endpoints `/videos/upload`, `/violations`, `/ws/camera`
-- [ ]  Middleware to verify Supabase JWT
-- [ ]  Integrate Celery + Redis for async video upload processing
-- [ ]  Save violation images to Supabase Storage, metadata to Postgres
+| Area | Choice |
+|---|---|
+| Frontend | Next.js, React, Supabase SSR/client SDK |
+| Backend API | FastAPI |
+| Async jobs | Celery + Redis |
+| ML runtime | ONNX Runtime + OpenCV |
+| Database | Supabase Postgres |
+| Auth | Supabase Auth |
+| Storage | Supabase Storage (`videos`, `violations` buckets) |
+| Package managers | `uv` (Python), `npm` (frontend) |
+| Local orchestration | Docker Compose |
+| Deployment | GKE (after local E2E is stable) |
 
-### Phase 4: Frontend
+## 5. Data Model
 
-- [ ]  Login/signup page (Supabase Auth)
-- [ ]  Video upload page with model selection
-- [ ]  Real-time camera page (WebSocket + live bounding box display)
-- [ ]  Violations dashboard (Supabase Realtime subscription)
+Run schema files from `backend/supabase/schema/` in numeric order.
 
-### Phase 5: Containerization & Deployment
+### `profiles`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | FK → `auth.users`, primary key |
+| `role` | text | `admin` or `operator`, default `operator` |
+| `full_name` | text | optional display name |
 
-- [ ]  Write `Dockerfile.api` (FastAPI only, no ML deps — uses `uv`)
-- [ ]  Write `Dockerfile.worker` (ONNX Runtime inference — uses `uv`, no torch needed)
-- [ ]  Write Kubernetes manifests (Deployment, Service)
-- [ ]  Create GKE cluster on GCP, deploy Redis + FastAPI + Celery worker
-- [ ]  Deploy Next.js (Vercel or GKE)
-- [ ]  Set up GitHub Actions: build → push to Artifact Registry → deploy to GKE
+### `videos`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | generated, primary key |
+| `user_id` | uuid | FK → `auth.users` |
+| `filename` | text | original upload name |
+| `storage_path` | text | path inside `videos` bucket |
+| `content_type` | text | upload MIME type |
+| `model_used` | text | `yolo`, `rtdetr`, or `fasterrcnn` |
+| `status` | text | `pending` → `processing` → `done` / `failed` |
+| `created_at` | timestamptz | auto |
 
-### Phase 6: Testing & Demo
+### `violations`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | generated, primary key |
+| `video_id` | uuid | nullable — null means live camera detection |
+| `user_id` | uuid | FK → `auth.users` |
+| `track_id` | int | tracked motorbike ID, nullable |
+| `model_used` | text | model that produced the detection |
+| `image_url` | text | public URL of the violation crop |
+| `timestamp` | timestamptz | detection time, auto |
 
-- [ ]  End-to-end test: upload video → view results → check dashboard
-- [ ]  Test real-time camera mode
-- [ ]  Measure FPS/accuracy of the 3 models for comparison (for the report)
-- [ ]  Prepare demo and write report
+### RLS Policies
+- Operators read only their own rows (`auth.uid() = user_id`)
+- Admins read all rows (join to `profiles` where `role = 'admin'`)
+- Backend uses `SERVICE_ROLE_KEY` and bypasses RLS for writes
 
-## 8. Cost & Operational Notes
+## 6. Detection Pipeline
 
-- **GCP $300 trial**: used for GKE (FastAPI, Celery worker, Redis) — sufficient for several months if not running 24/7
-- **Supabase free tier**: fully replaces self-hosted PostgreSQL and MinIO; covers DB + Auth + Storage (1GB) + Realtime. Project auto-pauses after 1 week of inactivity → unpause before demos if left idle
-- **ONNX models**: `Dockerfile.worker` only needs `onnxruntime` (~50MB) instead of `torch` (~2GB) — significantly smaller image, faster pull times on GKE
-- **uv**: used in both `Dockerfile.api` and `Dockerfile.worker` via `uv sync --frozen --no-dev` — faster than pip, no `requirements.txt`
-- **Heavy models (Faster R-CNN, RT-DETR)**: if running on CPU, reduce input resolution and infer every N frames to keep real-time performance acceptable
+All model wrappers normalize outputs into a shared `Detection` dataclass:
+
+```python
+@dataclass
+class Detection:
+    class_name: str        # "motorbike" | "helmet" | "non-helmet"
+    box: tuple             # (x1, y1, x2, y2)
+    confidence: float
+    track_id: int | None   # assigned after tracking step
+```
+
+Pipeline steps per video:
+
+1. Download video from Supabase Storage to worker `/tmp/`
+2. Decode frames with OpenCV (`cv2.VideoCapture`)
+3. Run selected ONNX model wrapper → list of `Detection`
+4. Track motorbikes across frames (`IoUTracker` or ByteTrack)
+5. Associate `non-helmet` boxes with nearest motorbike box
+6. Deduplicate — one crop saved per `track_id` per violation window
+7. Upload crop to `violations` bucket → get public URL
+8. Insert violation row into Postgres
+9. Update video `status` → `done` or `failed`
+10. Delete `/tmp/` video file
+
+## 7. Module Responsibilities
+
+### `app/db/`
+Leaf module — no imports from routes, tasks, or auth.
+
+| File | Responsibility |
+|---|---|
+| `client.py` | Supabase singleton using `SERVICE_ROLE_KEY` |
+| `videos.py` | `insert_video`, `update_video_status`, `get_video` |
+| `violations.py` | `insert_violation`, `list_violations` |
+| `storage.py` | `upload_file`, `download_file`, `get_public_url`, `delete_file` |
+| `profiles.py` | `get_profile`, `upsert_profile` |
+
+### `app/models/`
+| File | Responsibility |
+|---|---|
+| `base.py` | `BaseDetector` ABC, `Detection` dataclass |
+| `yolo_wrapper.py` | ONNX pre/postprocess for YOLO |
+| `rtdetr_wrapper.py` | ONNX pre/postprocess for RT-DETR |
+| `fasterrcnn_wrapper.py` | ONNX pre/postprocess for Faster R-CNN |
+
+### `app/routes/`
+| File | Endpoints |
+|---|---|
+| `videos.py` | `POST /videos/upload`, `GET /videos/{id}` |
+| `violations.py` | `GET /violations` |
+| `camera.py` | `WS /ws/camera` |
+
+### Other backend modules
+| File | Responsibility |
+|---|---|
+| `auth.py` | `get_current_user` FastAPI dependency (JWT verify) |
+| `tracker.py` | `IoUTracker` — motorbike tracking across frames |
+| `violation_logic.py` | `find_violations` — association + deduplication |
+| `tasks.py` | `process_video` Celery task |
+| `celery_app.py` | Celery app factory |
+| `config.py` | Pydantic `Settings` from env vars |
+
+## 8. Environment Variables
+
+Backend (`.env`):
+```text
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_JWT_SECRET=
+SUPABASE_VIDEO_BUCKET=videos
+SUPABASE_VIOLATIONS_BUCKET=violations
+REDIS_URL=redis://localhost:6379/0
+```
+
+Frontend (`.env.local`):
+```text
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+## 9. Local Development
+
+Backend API:
+```bash
+cd backend
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+Celery worker:
+```bash
+cd backend
+uv run celery -A app.celery_app.celery_app worker --loglevel=info
+```
+
+All services via Docker Compose:
+```bash
+docker compose up --build
+```
+
+Frontend:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## 10. Milestones
+
+### Milestone 1 — Local Baseline ✅ (mostly done)
+- [x] FastAPI app, auth dependency, routes, health endpoint
+- [x] Supabase schema SQL modules
+- [x] Next.js login, upload, dashboard, camera pages
+- [x] Docker Compose for Redis, API, worker
+- [x] Video upload to Supabase Storage before enqueueing
+- [ ] Smoke-test instructions for running all services locally together
+
+### Milestone 2 — Backend Processing
+- [ ] `storage.py`: `download_file` helper for worker to fetch queued videos
+- [ ] `tasks.py`: full `process_video` with status transitions and error handling
+- [ ] Frame sampling strategy (every N frames, configurable)
+- [ ] YOLO ONNX output parsing (exact tensor shapes from export)
+- [ ] RT-DETR ONNX output parsing
+- [ ] Faster R-CNN ONNX output parsing
+- [ ] Deduplication: one crop per `track_id` per violation window
+- [ ] Unit tests for `IoUTracker` and `find_violations`
+
+### Milestone 3 — Frontend Workflows
+- [ ] Video status polling on upload page (`pending` → `processing` → `done`)
+- [ ] Upload error states with user-facing messages
+- [ ] Violation images rendered inline on dashboard (not just URLs)
+- [ ] Authenticated REST fallback if Realtime subscription drops
+- [ ] Camera page: frame capture loop → WebSocket send
+- [ ] Camera page: draw bounding boxes over live preview canvas
+
+### Milestone 4 — Supabase Hardening
+- [ ] Create `videos` and `violations` storage buckets with correct policies
+- [ ] Decide visibility: `videos` bucket private, `violations` bucket public
+- [ ] Add indexes: `videos.user_id`, `violations.user_id`, `violations.timestamp`
+- [ ] Add insert/update RLS policies if any client-side writes are needed
+- [ ] Document schema migration steps for future changes
+
+### Milestone 5 — Model Evaluation
+- [ ] Export YOLO, RT-DETR, Faster R-CNN to ONNX (final weights)
+- [ ] Record tensor shapes for each model's ONNX output
+- [ ] Evaluate FPS, precision, recall, mAP on shared validation split
+- [ ] Document hardware and inference settings used
+- [ ] Pick default demo model based on accuracy/speed tradeoff
+
+### Milestone 6 — Deployment
+- [ ] Finalize `Dockerfile.api` and `Dockerfile.worker` for production
+- [ ] Frontend deployment (Vercel or GKE)
+- [ ] Kubernetes manifests in `k8s/` (FastAPI, worker, Redis, optional Next.js)
+- [ ] Secrets via platform secret manager — no committed `.env` files
+- [ ] GitHub Actions: lint → build images → push → deploy to GKE
+
+## 11. Immediate Next Steps
+
+1. Create `videos` and `violations` buckets in Supabase Storage
+2. Implement `download_file` in `app/db/storage.py`
+3. Implement full `process_video` task in `app/tasks.py`
+4. Export ONNX models and record output tensor shapes
+5. Complete ONNX output parsing in all three wrappers
+6. Run end-to-end: upload video → worker processes → dashboard shows violation

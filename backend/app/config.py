@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     supabase_service_role_key: str | None = None
     supabase_jwt_secret: str | None = None
     supabase_storage_bucket: str = "violations"
+    supabase_video_bucket: str = "videos"
 
     model_dir: str = "app/weights"
 

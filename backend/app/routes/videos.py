@@ -1,9 +1,12 @@
 from typing import Annotated
+from pathlib import Path
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from ..auth import get_current_user
-from ..supabase_client import insert_video
+from ..db.storage import upload_video as upload_video_to_storage
+from ..db.videos import insert_video
 from ..tasks import process_video
 
 router = APIRouter(prefix="/videos", tags=["videos"])
@@ -23,15 +26,33 @@ async def upload_video(
             detail="model_name must be one of: yolo, rtdetr, fasterrcnn",
         )
 
-    video_row = insert_video(
+    original_filename = Path(video.filename or "uploaded-video").name or "uploaded-video"
+    content = await video.read()
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded video is empty",
+        )
+
+    object_path = f"{current_user['sub']}/{uuid4()}-{original_filename}"
+    storage_path = upload_video_to_storage(
+        content=content,
+        filename=object_path,
+        content_type=video.content_type,
+    )
+
+    video_id = insert_video(
         user_id=current_user["sub"],
-        filename=video.filename or "uploaded-video",
-        model_name=model_name,
+        filename=original_filename,
+        model_used=model_name,
+        storage_path=storage_path,
+        content_type=video.content_type,
     )
     task = process_video.delay(
-        video_id=video_row["id"],
-        filename=video.filename or "uploaded-video",
+        video_id=video_id,
+        storage_path=storage_path,
+        filename=original_filename,
         model_name=model_name,
         user_id=current_user["sub"],
     )
-    return {"video_id": video_row["id"], "task_id": task.id, "status": "queued"}
+    return {"video_id": video_id, "task_id": task.id, "status": "queued"}

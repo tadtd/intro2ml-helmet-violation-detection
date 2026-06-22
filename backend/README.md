@@ -31,6 +31,18 @@ Copy `../.env.example` to `.env` or provide the variables in your shell. Supabas
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_JWT_SECRET`
+- `SUPABASE_VIDEO_BUCKET` for uploaded source videos
+- `SUPABASE_STORAGE_BUCKET` for violation crop images
+
+## Supabase Schema
+
+Run the SQL modules in `supabase/schema/` in numeric order from the Supabase SQL
+editor.
+
+Create two storage buckets before testing uploads:
+
+- `videos`
+- `violations`
 
 The API exposes:
 
