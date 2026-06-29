@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helmet-worker
+  namespace: helmet-violation
+  labels:
+    app.kubernetes.io/name: helmet-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: helmet-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: helmet-worker
+        app.kubernetes.io/component: worker
+    spec:
+      containers:
+        - name: worker
+          image: REGION-docker.pkg.dev/PROJECT_ID/REPOSITORY/helmet-worker:TAG
+          imagePullPolicy: IfNotPresent
+          command: ["celery"]
+          args:
+            - "-A"
+            - "app.celery_app.celery_app"
+            - "worker"
+            - "--loglevel=info"
+          env:
+            - name: ENVIRONMENT
+              value: production
+            - name: REDIS_URL
+              value: redis://helmet-redis:6379/0
+            - name: SUPABASE_VIDEO_BUCKET
+              value: videos
+            - name: SUPABASE_STORAGE_BUCKET
+              value: violations
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: helmet-api-secrets
+                  key: SUPABASE_URL
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: helmet-api-secrets
+                  key: SUPABASE_ANON_KEY
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: helmet-api-secrets
+                  key: SUPABASE_SERVICE_ROLE_KEY
+            - name: SUPABASE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: helmet-api-secrets
+                  key: SUPABASE_JWT_SECRET
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import os, socket; host=os.environ['REDIS_URL'].split('//',1)[1].split(':',1)[0]; socket.create_connection((host, 6379), 5).close()"
+            initialDelaySeconds: 15
+            periodSeconds: 30

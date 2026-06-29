@@ -6,6 +6,11 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
@@ -13,10 +18,18 @@ services:
       dockerfile: Dockerfile.api
     env_file:
       - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   worker:
     build:
@@ -24,8 +37,11 @@ services:
       dockerfile: Dockerfile.worker
     env_file:
       - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
 volumes:
   redis-data:

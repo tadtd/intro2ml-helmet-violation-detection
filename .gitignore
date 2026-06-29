@@ -136,6 +136,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
 .envrc
 .venv
 env/
@@ -216,6 +218,15 @@ notes/
 *.pth
 *.pt
 docs/*.pdf
+
+# Kubernetes and deployment secrets
+*.secret.yaml
+secrets/
+.kube/
+kubeconfig*
+*.key
+*.crt
+*.pem
 
 # agents
 .agents/

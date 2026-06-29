@@ -37,7 +37,8 @@ Copy `../.env.example` to `.env` or provide the variables in your shell. Supabas
 ## Supabase Schema
 
 Run the SQL modules in `supabase/schema/` in numeric order from the Supabase SQL
-editor.
+editor. Detailed setup, bucket policy, auth, realtime, verification, and
+rollback guidance is maintained in `../docs/supabase-setup.md`.
 
 Create two storage buckets before testing uploads:
 

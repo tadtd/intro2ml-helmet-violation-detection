@@ -1,10 +1,6 @@
-node_modules/
-.git/
-Dockerfile*
-.dockerignore
-*.log*
-.env*
-coverage/
+.env
+.env.local
+.env.production
 __pycache__/
 *.pyc
 .venv/
@@ -16,4 +12,5 @@ build/
 .mypy_cache/
 .ruff_cache/
 htmlcov/
-docs/_build/
+*.log*
+app/weights/*.onnx
