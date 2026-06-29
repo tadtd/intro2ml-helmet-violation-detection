@@ -1,50 +1,134 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+Version change: N/A -> 1.0.0
+Modified principles:
+- Template placeholder -> I. Secret Hygiene Is Mandatory
+- Template placeholder -> II. Infrastructure Changes Require Local Runbooks
+- Template placeholder -> III. Local-First Runtime
+- Template placeholder -> IV. Supabase Least Privilege
+- Template placeholder -> V. Ordered, Non-Destructive Schema Changes
+- Template placeholder -> VI. Kubernetes and CI/CD Secret Isolation
+- Template placeholder -> VII. Repository-Fit Artifacts
+Added sections:
+- Security and Infrastructure Constraints
+- Development Workflow and Quality Gates
+Removed sections:
+- None
+Templates requiring updates:
+- Updated: .specify/templates/plan-template.md
+- Updated: .specify/templates/spec-template.md
+- Updated: .specify/templates/tasks-template.md
+- Not present: .specify/templates/commands/*.md
+- Updated: README.md
+Follow-up TODOs:
+- None
+-->
+# Helmet Violation Detection Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Secret Hygiene Is Mandatory
+Real secrets MUST NOT be committed. This includes tokens, service role keys,
+real `.env` files, kubeconfigs, certificates, private keys, and equivalent
+credentials. Only documented placeholders, examples, or local-only dummy values
+may be stored in the repository.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Rationale: the system integrates with Supabase, CI/CD, and deployment targets
+where a leaked credential can expose user data, storage objects, or production
+infrastructure.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Infrastructure Changes Require Local Runbooks
+Every change to Docker Compose, Kubernetes, CI/CD, Supabase infrastructure,
+Redis, API, worker, or related deployment configuration MUST document how to run
+it locally and how to perform a local smoke test.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+Rationale: infrastructure that cannot be reproduced and checked locally is too
+risky for a course project with multiple moving parts.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Local-First Runtime
+Docker Compose MUST run Redis, the FastAPI API, and the Celery worker
+successfully before Kubernetes deployment work is considered ready. Kubernetes
+manifests, cloud deployment, and CI/CD automation MUST build on the proven local
+Compose path.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Rationale: the API, worker, Redis queue, and ML processing flow form the minimum
+runtime backbone. Debugging that backbone locally is required before adding
+cluster complexity.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Supabase Least Privilege
+Frontend code MUST use only publishable or anon Supabase keys. Backend services,
+workers, migrations, and trusted administrative tooling MAY use the service role
+key only through environment variables or a secret manager. Service role keys
+MUST NOT appear in browser bundles, public config, or committed files.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+Rationale: Supabase service role keys bypass Row Level Security and must remain
+server-side only.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Ordered, Non-Destructive Schema Changes
+Supabase schema files and migrations MUST have a clear execution order. Schema
+changes SHOULD be idempotent where practical and MUST avoid destructive changes
+to existing data unless a documented migration and rollback plan exists.
+
+Rationale: violation evidence, video metadata, profiles, and audit-relevant
+rows must remain stable as the data model evolves.
+
+### VI. Kubernetes and CI/CD Secret Isolation
+Kubernetes manifests and CI/CD workflows MUST NOT hardcode secrets. They MUST use
+a documented secret manager integration or secret placeholders with documented
+commands or steps for creating the required secrets.
+
+Rationale: deployment artifacts are often copied between environments, so secret
+material must stay outside the repository and outside static manifests.
+
+### VII. Repository-Fit Artifacts
+Generated artifacts MUST fit the current repository structure. Work MUST extend
+the existing `backend/`, `frontend/`, `models/`, `crawl/`, `docs/`, `.specify/`,
+and deployment paths as appropriate, and MUST NOT create a new monorepo or
+parallel project scaffold for the same system.
+
+Rationale: duplicating the project structure makes implementation, review, and
+deployment harder and risks diverging from the plan for this course project.
+
+## Security and Infrastructure Constraints
+
+- `.env.example` files MAY contain empty values or documented placeholders only.
+- Local setup documentation MUST identify required environment variables without
+  embedding real secret values.
+- Infrastructure documentation MUST include at least one smoke test that proves
+  Redis, API, and worker are reachable or running for local Compose changes.
+- Supabase schema updates MUST state the intended order of execution.
+- Kubernetes and CI/CD changes MUST document how required secrets are created or
+  injected outside source control.
+
+## Development Workflow and Quality Gates
+
+- Feature plans MUST pass a Constitution Check before implementation research
+  and again after design.
+- Feature specs that touch infrastructure, Supabase, auth, CI/CD, Kubernetes, or
+  generated artifacts MUST include requirements that map to the relevant
+  constitutional principles.
+- Task lists MUST include documentation and local smoke-test tasks whenever they
+  include infrastructure changes.
+- Reviews MUST reject changes that expose secrets, bypass Supabase least
+  privilege, skip ordered migrations, or create a parallel repository structure.
+- Local Docker Compose validation is the required first deployment gate for
+  Redis, API, and worker changes.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes conflicting development practices for this
+repository. Amendments MUST be recorded in `.specify/memory/constitution.md`,
+include a Sync Impact Report, update affected templates or runtime guidance, and
+use semantic versioning.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+Versioning policy:
+- MAJOR: backward-incompatible governance changes or principle removals.
+- MINOR: new principles, new required sections, or materially expanded guidance.
+- PATCH: clarifications, wording fixes, or non-semantic refinements.
+
+Compliance review is required for every feature plan, generated task list, and
+infrastructure-related change. If a change cannot satisfy a principle, the plan
+MUST document the violation, why it is necessary, and the simpler compliant
+alternative that was rejected.
+
+**Version**: 1.0.0 | **Ratified**: 2026-06-29 | **Last Amended**: 2026-06-29
