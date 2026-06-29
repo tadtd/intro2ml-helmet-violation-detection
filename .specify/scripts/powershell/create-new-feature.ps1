@@ -67,6 +67,90 @@ function Get-HighestNumberFromSpecs {
     return $highest
 }
 
+function Get-HighestNumberFromNames {
+    param([string[]]$Names)
+
+    [long]$highest = 0
+    foreach ($name in $Names) {
+        if ($name -match '^(\d{3,})-' -and $name -notmatch '^\d{8}-\d{6}-') {
+            [long]$num = 0
+            if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
+                $highest = $num
+            }
+        }
+    }
+    return $highest
+}
+
+function Get-HighestNumberFromBranches {
+    param()
+
+    try {
+        $branches = git branch -a 2>$null
+        if ($LASTEXITCODE -eq 0 -and $branches) {
+            $cleanNames = $branches | ForEach-Object {
+                $_.Trim() -replace '^\*?\s+', '' -replace '^remotes/[^/]+/', ''
+            }
+            return Get-HighestNumberFromNames -Names $cleanNames
+        }
+    } catch {
+        Write-Verbose "Could not check Git branches: $_"
+    }
+    return 0
+}
+
+function Get-HighestNumberFromRemoteRefs {
+    [long]$highest = 0
+    try {
+        $remotes = git remote 2>$null
+        if ($remotes) {
+            foreach ($remote in $remotes) {
+                $previousPrompt = $env:GIT_TERMINAL_PROMPT
+                $env:GIT_TERMINAL_PROMPT = '0'
+                $refs = git ls-remote --heads $remote 2>$null
+                $env:GIT_TERMINAL_PROMPT = $previousPrompt
+                if ($LASTEXITCODE -eq 0 -and $refs) {
+                    $refNames = $refs | ForEach-Object {
+                        if ($_ -match 'refs/heads/(.+)$') { $matches[1] }
+                    } | Where-Object { $_ }
+                    $remoteHighest = Get-HighestNumberFromNames -Names $refNames
+                    if ($remoteHighest -gt $highest) { $highest = $remoteHighest }
+                }
+            }
+        }
+    } catch {
+        Write-Verbose "Could not query remote refs: $_"
+    } finally {
+        if (Get-Variable -Name previousPrompt -Scope Local -ErrorAction SilentlyContinue) {
+            $env:GIT_TERMINAL_PROMPT = $previousPrompt
+        }
+    }
+    return $highest
+}
+
+function Get-NextBranchNumber {
+    param(
+        [string]$SpecsDir,
+        [switch]$SkipFetch
+    )
+
+    if ($SkipFetch) {
+        $highestBranch = Get-HighestNumberFromBranches
+        $highestRemote = Get-HighestNumberFromRemoteRefs
+        $highestBranch = [Math]::Max($highestBranch, $highestRemote)
+    } else {
+        try {
+            git fetch --all --prune 2>$null | Out-Null
+        } catch {
+        }
+        $highestBranch = Get-HighestNumberFromBranches
+    }
+
+    $highestSpec = Get-HighestNumberFromSpecs -SpecsDir $SpecsDir
+    $maxNum = [Math]::Max($highestBranch, $highestSpec)
+    return $maxNum + 1
+}
+
 function ConvertTo-CleanBranchName {
     param([string]$Name)
 
@@ -77,6 +161,21 @@ function ConvertTo-CleanBranchName {
 
 # Use common.ps1 functions which prioritize .specify
 $repoRoot = Get-RepoRoot
+
+function Test-LocalGitAvailable {
+    param([string]$RepoRoot)
+
+    try {
+        if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return $false }
+        if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot '.git'))) { return $false }
+        git -C $RepoRoot rev-parse --is-inside-work-tree 2>$null | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
+$hasGit = Test-LocalGitAvailable -RepoRoot $repoRoot
 
 Set-Location $repoRoot
 
@@ -153,9 +252,15 @@ if ($Timestamp) {
     $featureNum = Get-Date -Format 'yyyyMMdd-HHmmss'
     $branchName = "$featureNum-$branchSuffix"
 } else {
-    # Determine branch number from existing feature directories
+    # Determine feature number from specs plus local/remote feature branches.
     if ($Number -eq 0) {
-        $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
+        if ($DryRun -and $hasGit) {
+            $Number = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch
+        } elseif ($hasGit) {
+            $Number = Get-NextBranchNumber -SpecsDir $specsDir
+        } else {
+            $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
+        }
     }
 
     $featureNum = ('{0:000}' -f $Number)
