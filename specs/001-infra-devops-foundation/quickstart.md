@@ -74,7 +74,7 @@ $token = "<LOCAL_SUPABASE_USER_JWT>"
 curl.exe -X POST "http://localhost:8000/videos/upload" `
   -H "Authorization: Bearer $token" `
   -F "model_name=yolo" `
-  -F "video=@data/sample-smoke.mp4"
+  -F "video=@data/sample-smoke-small.mp4"
 ```
 
 Expected result:

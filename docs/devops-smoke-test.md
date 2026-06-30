@@ -10,7 +10,9 @@ inference, violation crop generation, Kubernetes, CI/CD, or frontend workflows.
 - Supabase development project configured with `docs/supabase-setup.md`.
 - Local credentials in untracked `.env`.
 - PowerShell from the repository root.
-- A small local MP4 test file, for example `data\sample-smoke.mp4`.
+- A small local upload test file, for example `data\sample-smoke-small.mp4`.
+  Use a real MP4 under the Supabase bucket size limit when validating video
+  decoding outside this infrastructure smoke test.
 - A local authenticated Supabase user JWT for the upload endpoint.
 
 ## Local Environment Safety
@@ -70,7 +72,7 @@ Supabase user. Keep this token in your shell only; do not add a real JWT to
 
 ```powershell
 $env:LOCAL_SUPABASE_USER_JWT = "<LOCAL_SUPABASE_USER_JWT>"
-$VideoPath = "data\sample-smoke.mp4"
+$VideoPath = "data\sample-smoke-small.mp4"
 Test-Path $VideoPath
 ```
 
@@ -143,6 +145,7 @@ confirms Compose can resolve the local stack shape without committing secrets.
 - Upload succeeds but no task appears queued: inspect `docker compose logs api`
   and `docker compose logs worker` for Celery or Redis errors.
 - Missing storage object: confirm `SUPABASE_VIDEO_BUCKET=videos`, the bucket is
-  private, and the service-role key is backend-only and valid.
+  private, the service-role key is backend-only and valid, and the upload file
+  is below the bucket file size limit.
 - Worker not running: rebuild with `docker compose up --build worker` and check
   `docker compose logs worker --tail 80`.

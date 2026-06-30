@@ -35,6 +35,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Lint And Validate Local Artifacts
+        run: |
+          docker compose config
+          python -m py_compile \
+            backend/app/auth.py \
+            backend/app/main.py \
+            backend/app/celery_app.py
+          test -f k8s/kustomization.yaml
+
       - name: Authenticate To Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -78,6 +87,9 @@ jobs:
           location: ${{ env.GKE_LOCATION }}
           project_id: ${{ env.GCP_PROJECT_ID }}
 
+      - name: Ensure Kubernetes Namespace Exists
+        run: kubectl apply -f k8s/namespace.yaml
+
       - name: Verify Required Kubernetes Secrets Exist
         run: |
           kubectl -n "${K8S_NAMESPACE}" get secret helmet-api-secrets
@@ -87,7 +99,6 @@ jobs:
 
       - name: Apply Required Kubernetes Manifests
         run: |
-          kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/redis.yaml
           kubectl apply -f k8s/api.yaml
           kubectl apply -f k8s/worker.yaml

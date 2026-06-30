@@ -78,7 +78,7 @@
 - [X] T023 [P] [US2] Document PowerShell command to copy `.env.example` to untracked `.env` and list required local values in `docs/devops-smoke-test.md`
 - [X] T024 [US2] Document `docker compose up --build` startup instructions and expected `docker compose ps` output for `redis`, `api`, and `worker` in `docs/devops-smoke-test.md`
 - [X] T025 [US2] Document API health smoke test using `Invoke-RestMethod -Uri http://localhost:8000/health -Method Get` in `docs/devops-smoke-test.md`
-- [X] T026 [US2] Document authenticated upload smoke test using `curl.exe` with `Authorization: Bearer <LOCAL_SUPABASE_USER_JWT>` and sample video path `data/sample-smoke.mp4` in `docs/devops-smoke-test.md`
+- [X] T026 [US2] Document authenticated upload smoke test using `curl.exe` with `Authorization: Bearer <LOCAL_SUPABASE_USER_JWT>` and sample upload path `data/sample-smoke-small.mp4` in `docs/devops-smoke-test.md`
 - [X] T027 [US2] Document Supabase verification steps for a `videos` row and matching private `videos` bucket object in `docs/devops-smoke-test.md`
 - [X] T028 [US2] Document worker readiness checks using `docker compose ps worker` and `docker compose logs worker` in `docs/devops-smoke-test.md`
 - [X] T029 [US2] Document troubleshooting for missing env values, API health failure, upload success without enqueue, missing storage object, and worker not running in `docs/devops-smoke-test.md`
