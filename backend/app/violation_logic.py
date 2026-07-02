@@ -1,17 +1,7 @@
 from dataclasses import dataclass
-from typing import Literal
 
+from .models.base import Detection
 from .tracker import iou
-
-DetectionClass = Literal["motorbike", "helmet", "non-helmet"]
-
-
-@dataclass(frozen=True)
-class Detection:
-    class_name: DetectionClass
-    box: tuple[float, float, float, float]
-    confidence: float
-    track_id: int | None = None
 
 
 @dataclass(frozen=True)
