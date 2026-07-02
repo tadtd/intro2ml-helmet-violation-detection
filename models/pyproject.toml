@@ -1,0 +1,16 @@
+[project]
+name = "helmet-violation-detection"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+  "torch",
+  "torchvision",
+  "ultralytics",
+  "pycocotools",
+  "torchmetrics[detection]",
+  "numpy",
+  "Pillow",
+  "tqdm",
+  "pyyaml",
+  "ray[tune]",
+]
