@@ -1,0 +1,72 @@
+{
+  "common": {
+    "title": "Hệ thống phát hiện vi phạm mũ bảo hiểm",
+    "dashboard": "Bảng điều khiển",
+    "upload": "Tải lên video",
+    "camera": "Giám sát camera",
+    "health": "Sức khỏe hệ thống",
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "language": "Ngôn ngữ",
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "success": "Thành công"
+  },
+  "auth": {
+    "signIn": "Đăng nhập tài khoản",
+    "username": "Tên đăng nhập",
+    "password": "Mật khẩu",
+    "role": "Vai trò",
+    "operator": "Nhân viên vận hành",
+    "admin": "Quản trị viên",
+    "invalidCredentials": "Tên đăng nhập hoặc mật khẩu không chính xác.",
+    "sessionExpired": "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại."
+  },
+  "upload": {
+    "title": "Tải lên video mới",
+    "dropzoneText": "Kéo thả video vào đây hoặc click để chọn file",
+    "limitText": "Chấp nhận file video lên tới 1GB",
+    "queueTitle": "Hàng đợi tải lên",
+    "pause": "Tạm dừng",
+    "resume": "Tiếp tục",
+    "cancel": "Hủy",
+    "processingJobs": "Danh sách tiến trình xử lý",
+    "noJobs": "Chưa có tiến trình nào",
+    "jobId": "Mã tiến trình",
+    "fileName": "Tên file",
+    "status": "Trạng thái",
+    "model": "Mô hình sử dụng",
+    "createdAt": "Thời gian tạo",
+    "actions": "Thao tác",
+    "viewResults": "Xem kết quả"
+  },
+  "states": {
+    "pending": "Đang chờ",
+    "processing": "Đang xử lý",
+    "done": "Hoàn thành",
+    "failed": "Thất bại"
+  },
+  "results": {
+    "violationsTitle": "Danh sách vi phạm phát hiện",
+    "timeline": "Dòng thời gian vi phạm",
+    "gallery": "Thư viện ảnh minh chứng",
+    "confidenceSlider": "Ngưỡng độ tin cậy",
+    "filterModel": "Lọc theo mô hình",
+    "filterStatus": "Lọc theo trạng thái",
+    "approve": "Phê duyệt",
+    "dismiss": "Bỏ qua",
+    "flagged": "Đã đánh dấu lỗi",
+    "noViolations": "Không tìm thấy vi phạm nào khớp với điều kiện lọc."
+  },
+  "dashboard": {
+    "totalViolations": "Tổng số vi phạm",
+    "activeFeeds": "Kênh giám sát hoạt động",
+    "accuracyRate": "Độ chính xác trung bình",
+    "hourlyTrend": "Xu hướng vi phạm theo giờ",
+    "modelComparison": "So sánh hiệu suất mô hình",
+    "locationBreakdown": "Thống kê theo vị trí",
+    "exportCSV": "Xuất Excel/CSV",
+    "exportPDF": "Xuất Báo cáo PDF",
+    "healthStatus": "Trạng thái dịch vụ"
+  }
+}

@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.venv
+__pycache__
+*.onnx
+*.mp4
+*.avi
+*.mov
+*.mkv
+backend/app/weights/*
