@@ -1,0 +1,39 @@
+{
+  "api_gateway": {
+    "version": "v1",
+    "routes": [
+      {
+        "path": "/api/v1/auth/*",
+        "service": "auth-service",
+        "methods": ["POST", "GET"],
+        "authentication_required": false
+      },
+      {
+        "path": "/api/v1/ingest/upload",
+        "service": "ingestion-service",
+        "methods": ["POST"],
+        "authentication_required": true,
+        "description": "Video file upload to S3"
+      },
+      {
+        "path": "/api/v1/ingest/stream",
+        "service": "ingestion-service",
+        "methods": ["WS"],
+        "authentication_required": true,
+        "description": "WebSocket endpoint for live camera frames ingestion"
+      },
+      {
+        "path": "/api/v1/violations/*",
+        "service": "dashboard-service",
+        "methods": ["GET", "PATCH"],
+        "authentication_required": true
+      },
+      {
+        "path": "/api/v1/alerts/*",
+        "service": "notification-service",
+        "methods": ["GET", "PATCH"],
+        "authentication_required": true
+      }
+    ]
+  }
+}
