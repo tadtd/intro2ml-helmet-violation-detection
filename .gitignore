@@ -219,3 +219,8 @@ docs/*.pdf
 
 # agents
 .agents/
+
+# models
+*.onnx
+*.pt
+*.pth

@@ -35,11 +35,7 @@ def _stub_detections(image: np.ndarray) -> list[Detection]:
 
 
 def _weights_dir() -> Path:
-    settings = get_settings()
-    path = Path(settings.model_dir)
-    if not path.is_absolute():
-        path = Path(__file__).resolve().parents[4] / path
-    return path
+    return Path(__file__).resolve().parents[2] / "weights"
 
 
 @lru_cache(maxsize=3)
