@@ -1,0 +1,59 @@
+{
+  "websockets": [
+    {
+      "endpoint": "/ws/status",
+      "description": "Real-time detection job tracking and notification alerts connection.",
+      "events": [
+        {
+          "direction": "server-to-client",
+          "event_name": "job_status_update",
+          "payload": {
+            "type": "object",
+            "properties": {
+              "jobId": { "type": "string", "format": "uuid" },
+              "fileName": { "type": "string" },
+              "status": { "type": "string", "enum": ["pending", "processing", "done", "failed"] },
+              "modelUsed": { "type": "string", "enum": ["yolo", "rtdetr", "fasterrcnn"] },
+              "error": { "type": "string" }
+            },
+            "required": ["jobId", "fileName", "status", "modelUsed"]
+          }
+        },
+        {
+          "direction": "server-to-client",
+          "event_name": "new_violation_alert",
+          "payload": {
+            "type": "object",
+            "properties": {
+              "violationId": { "type": "string", "format": "uuid" },
+              "videoId": { "type": "string", "format": "uuid" },
+              "timestamp": { "type": "number", "description": "Offset in seconds from video start" },
+              "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+              "label": { "type": "string", "enum": ["non-helmet", "helmet", "motorbike"] }
+            },
+            "required": ["violationId", "videoId", "timestamp", "confidence", "label"]
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/ws/camera",
+      "description": "Preconfigured MJPEG/WebRTC stream for monitoring live cameras.",
+      "events": [
+        {
+          "direction": "server-to-client",
+          "event_name": "live_frame",
+          "payload": {
+            "type": "object",
+            "properties": {
+              "cameraId": { "type": "string" },
+              "frameData": { "type": "string", "description": "Base64 encoded JPEG binary data or raw MJPEG segment" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            },
+            "required": ["cameraId", "frameData", "timestamp"]
+          }
+        }
+      ]
+    }
+  ]
+}

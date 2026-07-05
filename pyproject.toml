@@ -1,0 +1,10 @@
+[tool.uv.workspace]
+members = [
+    "backend/common",
+    "backend/auth",
+    "backend/ingestion",
+    "backend/orchestration",
+    "backend/inference",
+    "backend/notification",
+    "backend/dashboard",
+]

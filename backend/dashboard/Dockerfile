@@ -1,0 +1,7 @@
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+WORKDIR /app
+COPY common ./common
+COPY dashboard ./dashboard
+RUN uv pip install --system ./common ./dashboard
+EXPOSE 8004
+CMD ["uvicorn", "dashboard.src.main:app", "--host", "0.0.0.0", "--port", "8004"]

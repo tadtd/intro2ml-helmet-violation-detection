@@ -1,0 +1,11 @@
+entryPoints:
+  web:
+    address: ":8000"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+
+log:
+  level: INFO

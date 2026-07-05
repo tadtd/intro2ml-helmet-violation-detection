@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package auth;
+
+service AuthService {
+  rpc VerifyToken (VerifyTokenRequest) returns (VerifyTokenResponse);
+  rpc GetUserProfile (GetUserProfileRequest) returns (GetUserProfileResponse);
+}
+
+message VerifyTokenRequest {
+  string token = 1;
+}
+
+message VerifyTokenResponse {
+  bool is_valid = 1;
+  string user_id = 2;
+  string role = 3;
+}
+
+message GetUserProfileRequest {
+  string user_id = 1;
+}
+
+message GetUserProfileResponse {
+  string user_id = 1;
+  string full_name = 2;
+  string role = 3;
+  string created_at = 4;
+}
