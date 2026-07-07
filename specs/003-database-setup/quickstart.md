@@ -1,43 +1,44 @@
 # Quickstart & Validation Guide
 
 ## Prerequisites
-- PostgreSQL 15+ installed locally (or via Docker)
-- `pgTAP` extension installed in the Postgres instance
+- `psql` client installed (via PostgreSQL: [https://www.postgresql.org/download/](https://www.postgresql.org/download/))
+- Access credentials to the shared Supabase test project — xin từ team lead
 
-## Setting Up the Test Environment
+## Setup (Chạy lần đầu)
 
-1. Create a local test database:
+1. Copy file `.env.example` thành `.env` và điền thông tin kết nối:
    ```bash
-   createdb helmet_violation_test
+   cp .env.example .env
+   # Mở .env và điền DB_URL thực vào
    ```
 
-2. Install `pgTAP`:
-   ```bash
-   psql -d helmet_violation_test -c "CREATE EXTENSION IF NOT EXISTS pgtap;"
+2. Đặt biến môi trường (chạy mỗi phiên terminal hoặc thêm vào `.env`):
+
+   **Windows PowerShell:**
+   ```powershell
+   $env:DB_URL = "postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
    ```
 
-3. Load the Supabase shim (which creates `auth.users`, `storage.buckets`, etc.):
+   **Linux/macOS:**
    ```bash
-   psql -d helmet_violation_test -f tests/db/shim.sql
+   export DB_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
    ```
 
-4. Apply the migrations in sequence:
-   ```bash
-   psql -d helmet_violation_test -f supabase/migrations/20260706000001_fr012_profiles_table.sql
-   psql -d helmet_violation_test -f supabase/migrations/20260706000002_fr013_fr014_videos_table.sql
-   psql -d helmet_violation_test -f supabase/migrations/20260706000003_fr015_fr016_violations_table.sql
-   psql -d helmet_violation_test -f supabase/migrations/20260706000004_fr017_indexes.sql
-   psql -d helmet_violation_test -f supabase/migrations/20260706000005_fr018_rls_policies.sql
-   psql -d helmet_violation_test -f supabase/migrations/20260706000006_fr019_fr020_storage_buckets.sql
-   ```
+## Chạy test
 
-## Running the Unit Tests
-
-Execute the pgTAP test suite to validate schema shape, constraints, and RLS behavior:
-
+### Test schema (kiểm tra cấu trúc bảng và check constraints):
 ```bash
-pg_prove -d helmet_violation_test tests/db/test_schema.sql
-pg_prove -d helmet_violation_test tests/db/test_rls.sql
+psql $DB_URL -f tests/db/test_schema.sql
 ```
+**Kết quả mong đợi**: 20 dòng `ok 1` đến `ok 20`, ROLLBACK ở cuối.
 
-**Expected Outcome**: All `pgTAP` tests should report `PASS`, confirming that the check constraints (e.g. `model_used` IN ('YOLO', ...)), indexes, and RLS operator/admin isolation policies work exactly as designed.
+### Test RLS (kiểm tra phân quyền operator/admin):
+```bash
+psql $DB_URL -f tests/db/test_rls.sql
+```
+**Kết quả mong đợi**: 6 dòng `ok 1` đến `ok 6`, ROLLBACK ở cuối.
+
+## Lưu ý quan trọng
+- Cả 2 test file đều nằm trong transaction `BEGIN...ROLLBACK` nên **KHÔNG ghi dữ liệu thật vào DB** — an toàn khi chạy nhiều lần.
+- Nếu thấy lỗi `pgtap extension not found`, vào Supabase Dashboard → Database → Extensions → bật `pgtap`.
+

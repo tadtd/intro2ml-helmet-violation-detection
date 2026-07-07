@@ -26,10 +26,10 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [x] T002 Create minimal local shim for Supabase auth/storage in `tests/db/shim.sql`
+- [x] T002 Link local repository to Supabase cloud testing project `helmet-violation-test` via `supabase link`
 - [x] T003 Create `profiles` table migration in `supabase/migrations/20260706000001_fr012_profiles_table.sql`
 
-**Checkpoint**: Foundation ready - local DB testing environment and root `profiles` table exist.
+**Checkpoint**: Foundation ready - cloud project linked and root `profiles` table exists.
 
 ---
 
@@ -101,7 +101,8 @@
 
 - [x] T012 [US4] Create storage buckets migration in `supabase/migrations/20260706000006_fr019_fr020_storage_buckets.sql`
 - [x] T013 [US4] Add backend API helper function for generating Supabase `createSignedUrl` in `src/services/storage.py` (FR-021)
-- [x] T014 [US4] Add Celery beat periodic task for deleting videos > 3 days old in `src/workers/cleanup.py` (FR-022)
+- [x] T014 [US4] Update Celery beat periodic task for deleting videos > 3 days old in `src/workers/cleanup.py` to explicitly exclude videos where `status = 'processing'` (FR-022)
+- [x] T015 [US4] Create storage API helper to enforce path conventions (`user_id/video_id/filename` and `video_id/violation_id/cropname`) during uploads in `src/services/storage.py` (FR-020)
 
 ---
 
@@ -109,7 +110,9 @@
 
 **Purpose**: Validation and completion of the DB setup.
 
-- [x] T015 Run validation steps in `quickstart.md` to ensure all pgTAP tests pass perfectly.
+- [x] T016 Push migrations to the linked Supabase project using `supabase db push` and verify clean state via `supabase db reset --linked`.
+- [x] T017 Run validation steps in `quickstart.md` to ensure all pgTAP tests pass against the remote Supabase testing instance using `pg_prove`.
+- [x] T018 Create a data-seeding script `tests/db/seed_10k.sql` and run `EXPLAIN ANALYZE` to verify <2s query latency on `violations` filtering to satisfy SC-005.
 
 ---
 
@@ -130,9 +133,9 @@
 
 ### Incremental Delivery
 
-1. Complete Setup + Foundational → Testing Shim and `profiles` ready.
-2. Add User Story 1 (Videos table) → Verify pgTAP tests.
-3. Add User Story 2 (RLS split) → Verify RLS pgTAP tests.
+1. Complete Setup + Foundational → Link test project and create `profiles` migration.
+2. Add User Story 1 (Videos table) → Verify via remote pgTAP tests.
+3. Add User Story 2 (RLS split) → Verify RLS via remote pgTAP tests.
 4. Add User Story 3 (Violations table) → Verify schemas.
 5. Add User Story 4 (Buckets).
-6. Validate full suite.
+6. Validate full suite via `supabase db push` and remote `pg_prove`.

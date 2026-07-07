@@ -224,3 +224,10 @@ docs/*.pdf
 *.onnx
 *.pt
 *.pth
+# Environment variables (contains DB credentials - NEVER commit)
+.env
+.env.local
+.env.*.local
+
+# Supabase temp files
+supabase/.temp/

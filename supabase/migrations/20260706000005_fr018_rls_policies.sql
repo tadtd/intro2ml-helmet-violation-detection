@@ -19,10 +19,10 @@ ON public.profiles FOR UPDATE TO authenticated
 USING (auth.uid() = id)
 WITH CHECK (auth.uid() = id);
 
--- Admins can do everything
+-- Admins can do everything (uses is_admin() SECURITY DEFINER to avoid recursive policy loop)
 CREATE POLICY "Admins can do everything on profiles" 
 ON public.profiles TO authenticated
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+USING (public.is_admin());
 
 -- Service role bypasses RLS implicitly if it has BYPASSRLS attribute, or we can explicitly allow
 CREATE POLICY "Service role can do everything on profiles" 
@@ -45,10 +45,10 @@ ON public.videos FOR UPDATE TO authenticated
 USING (user_id = auth.uid())
 WITH CHECK (user_id = auth.uid());
 
--- Admins can do everything
+-- Admins can do everything (uses is_admin() to avoid recursive policy)
 CREATE POLICY "Admins can do everything on videos" 
 ON public.videos TO authenticated
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+USING (public.is_admin());
 
 -- Service role bypasses
 CREATE POLICY "Service role can do everything on videos" 
@@ -73,10 +73,10 @@ ON public.violations FOR UPDATE TO authenticated
 USING (user_id = auth.uid())
 WITH CHECK (user_id = auth.uid());
 
--- Admins can do everything
+-- Admins can do everything (uses is_admin() to avoid recursive policy)
 CREATE POLICY "Admins can do everything on violations" 
 ON public.violations TO authenticated
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+USING (public.is_admin());
 
 -- Service role bypasses
 CREATE POLICY "Service role can do everything on violations" 

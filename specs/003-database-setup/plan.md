@@ -6,7 +6,9 @@
 
 ## Summary
 
-This plan outlines the extension of the `profiles`, `videos`, and `violations` schema on Supabase Postgres. It includes adding new operational and tracking columns, check constraints for model validation, performance indexes, Row Level Security (RLS) policies for role-based access control, and defining the two storage buckets (`videos` and `violations`). The implementation will be driven by pgTAP unit testing against a local Postgres instance using a local shim for Supabase-specific functions.
+This plan outlines the extension of the `profiles`, `videos`, and `violations` schema on Supabase Postgres. It includes adding new operational and tracking columns, check constraints for model validation, performance indexes, Row Level Security (RLS) policies for role-based access control, and defining the two storage buckets (`videos` and `violations`). 
+
+**Testing Approach Override**: Instead of local mocked shims, the implementation will be tested directly against a dedicated Supabase cloud testing project (`helmet-violation-test`). Migrations will be applied using the Supabase CLI (`supabase link` and `supabase db push`). pgTAP will be enabled via the Supabase Dashboard Extensions, and tests will be run via `pg_prove` connecting to the remote testing connection string. Clean state between test runs will be maintained using `supabase db reset --linked`.
 
 ## Technical Context
 
@@ -16,9 +18,9 @@ This plan outlines the extension of the `profiles`, `videos`, and `violations` s
 
 **Storage**: PostgreSQL Database, Supabase Storage (Buckets)
 
-**Testing**: pgTAP (Unit testing for schema shape, check constraints, indexes, and RLS)
+**Testing**: pgTAP (Unit testing for schema shape, check constraints, indexes, and RLS) executed via `pg_prove` against remote connection string.
 
-**Target Platform**: Supabase Platform / Local Postgres
+**Target Platform**: Supabase Cloud Testing Project (`helmet-violation-test`)
 
 **Project Type**: Database Schema & Migration
 
@@ -32,10 +34,10 @@ This plan outlines the extension of the `profiles`, `videos`, and `violations` s
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **Principle II (Comprehensive Testing Discipline)**: The plan adheres to using mock interfaces for external services. By implementing a minimal local shim for `auth.users`, `auth.uid()`, and `storage.*` objects, the migration and RLS policies can be tested against a plain, local Postgres instance using pgTAP without requiring a live Supabase project.
+- **Principle II (Comprehensive Testing Discipline)**: **VIOLATION JUSTIFIED**. Principle II requires mock interfaces to prevent flaky live-service tests. However, the user explicitly commanded testing directly on a dedicated live Supabase cloud project (`helmet-violation-test`) using `supabase db reset --linked`. While this introduces network state dependencies, it allows authentic testing of Supabase-specific features (auth.users, RLS) without maintaining complex local shims.
 - **Principle V (Rigorous Data Governance)**: The plan defines the necessary tables and buckets to store high-fidelity image crops (`violations` bucket) and log detection details transactionally.
 
-*Status: PASS*
+*Status: PASS (with Justification)*
 
 ## Project Structure
 
@@ -64,16 +66,16 @@ supabase/
 
 tests/
 └── db/
-    ├── shim.sql               # Minimal local shim for Supabase auth/storage
     ├── test_schema.sql        # pgTAP tests for tables, columns, constraints, and indexes
     └── test_rls.sql           # pgTAP tests for operator/admin/service_role access
 ```
 
-**Structure Decision**: Migrations are split per Functional Requirement (FR-012 through FR-020) to provide a clear, linear progression of schema changes. Tests are located in a dedicated `tests/db/` directory, structured to separate the shim environment from actual schema and RLS test logic. 
+**Structure Decision**: Migrations are split per Functional Requirement (FR-012 through FR-020) to provide a clear, linear progression of schema changes. Tests are located in a dedicated `tests/db/` directory. The previous `shim.sql` has been removed, as the testing environment is now a true Supabase cloud instance.
 *Note on FR-021 & FR-022*: FR-021 (Signed URLs) does not require a migration; it will be implemented as a backend API helper calling Supabase's `createSignedUrl`. FR-022 (Storage Expiration) will be implemented as a Celery beat periodic task (utilizing the existing worker infrastructure) rather than `pg_cron` to avoid introducing new Postgres extensions.
 
 ## Complexity Tracking
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-*No violations.*
+- **Violation**: Principle II (Live Testing)
+- **Justification**: Explicitly commanded by user to use `helmet-violation-test` cloud project to avoid the maintenance burden of local mock shims for Supabase internals. Clean state is maintained via `supabase db reset --linked`.
