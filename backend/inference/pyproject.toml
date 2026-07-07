@@ -1,0 +1,19 @@
+[project]
+name = "inference"
+version = "0.1.0"
+description = "Inference microservice"
+requires-python = ">=3.13"
+dependencies = [
+    "common",
+    "celery>=5.6.0",
+    "redis>=7.1.0",
+    "supabase>=2.25.0",
+    "pydantic-settings>=2.12.0",
+    "numpy>=2.4.6",
+    "onnxruntime>=1.23.2",
+    "opencv-python-headless>=4.12.0.88",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

@@ -28,9 +28,9 @@ data/
 
 | Split | Images | Annotations | File |
 |-------|-------:|------------:|------|
-| train |  2,309 |      11,047 | `instances_train_merged.json` |
-| val   |    330 |       1,889 | `instances_val.json` |
-| test  |    659 |       1,861 | `instances_test.json` |
+| train |  2,309 |      10,358 | `instances_train_merged.json` |
+| val   |    330 |       14797 | `instances_val.json` |
+| test  |    659 |       2960 | `instances_test.json` |
 
 Training scripts in `models/` use **`instances_train_merged.json`** when present (falls back to `instances_train.json`). Val and test always use their original annotation files.
 

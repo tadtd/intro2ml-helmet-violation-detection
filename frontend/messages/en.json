@@ -1,0 +1,72 @@
+{
+  "common": {
+    "title": "Helmet Violation Detection System",
+    "dashboard": "Dashboard",
+    "upload": "Upload Video",
+    "camera": "Camera Monitor",
+    "health": "System Health",
+    "login": "Login",
+    "logout": "Logout",
+    "language": "Language",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "auth": {
+    "signIn": "Account Sign In",
+    "username": "Username",
+    "password": "Password",
+    "role": "Role",
+    "operator": "Operator",
+    "admin": "Administrator",
+    "invalidCredentials": "Incorrect username or password.",
+    "sessionExpired": "Session expired. Please log in again."
+  },
+  "upload": {
+    "title": "Upload New Video",
+    "dropzoneText": "Drag & drop video here or click to select file",
+    "limitText": "Accepts video files up to 1GB",
+    "queueTitle": "Upload Queue",
+    "pause": "Pause",
+    "resume": "Resume",
+    "cancel": "Cancel",
+    "processingJobs": "Processing Jobs Pipeline",
+    "noJobs": "No jobs found",
+    "jobId": "Job ID",
+    "fileName": "File Name",
+    "status": "Status",
+    "model": "Model Used",
+    "createdAt": "Created At",
+    "actions": "Actions",
+    "viewResults": "View Results"
+  },
+  "states": {
+    "pending": "Pending",
+    "processing": "Processing",
+    "done": "Done",
+    "failed": "Failed"
+  },
+  "results": {
+    "violationsTitle": "Detected Violations List",
+    "timeline": "Violations Timeline",
+    "gallery": "Evidence Crop Gallery",
+    "confidenceSlider": "Confidence Threshold",
+    "filterModel": "Filter by Model",
+    "filterStatus": "Filter by Review Status",
+    "approve": "Approve",
+    "dismiss": "Dismiss",
+    "flagged": "Flagged Error",
+    "noViolations": "No violations matched the current filters."
+  },
+  "dashboard": {
+    "totalViolations": "Total Violations",
+    "activeFeeds": "Active Camera Streams",
+    "accuracyRate": "Average Model Precision",
+    "hourlyTrend": "Violations Hourly Trend",
+    "modelComparison": "Model Performance Comparison",
+    "locationBreakdown": "Location Violations Share",
+    "exportCSV": "Export CSV",
+    "exportPDF": "Export PDF Report",
+    "healthStatus": "Microservice Health Status"
+  }
+}

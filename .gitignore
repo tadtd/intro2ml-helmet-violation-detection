@@ -230,3 +230,7 @@ kubeconfig*
 
 # agents
 .agents/
+# models
+*.onnx
+*.pt
+*.pth

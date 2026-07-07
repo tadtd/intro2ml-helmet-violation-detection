@@ -1,11 +1,11 @@
 {
-  "version": "0.11.9",
+  "version": "0.12.4",
   "integration_state_schema": 1,
   "installed_integrations": [
-    "codex"
+    "agy"
   ],
   "integration_settings": {
-    "codex": {
+    "agy": {
       "script": "ps",
       "raw_options": "--skills",
       "parsed_options": {
@@ -14,6 +14,6 @@
       "invoke_separator": "-"
     }
   },
-  "integration": "codex",
-  "default_integration": "codex"
+  "integration": "agy",
+  "default_integration": "agy"
 }

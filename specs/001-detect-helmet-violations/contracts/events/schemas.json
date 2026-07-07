@@ -1,0 +1,39 @@
+{
+  "events": [
+    {
+      "event_name": "video_uploaded",
+      "publisher": "ingestion-service",
+      "subscribers": ["orchestration-service"],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "video_id": { "type": "string", "format": "uuid" },
+          "user_id": { "type": "string", "format": "uuid" },
+          "filename": { "type": "string" },
+          "storage_path": { "type": "string" },
+          "model_used": { "type": "string", "enum": ["yolo", "rtdetr", "fasterrcnn"] },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["video_id", "user_id", "filename", "storage_path", "model_used", "timestamp"]
+      }
+    },
+    {
+      "event_name": "violation_detected",
+      "publisher": "inference-service",
+      "subscribers": ["notification-service"],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "violation_id": { "type": "string", "format": "uuid" },
+          "video_id": { "type": ["string", "null"], "format": "uuid" },
+          "user_id": { "type": "string", "format": "uuid" },
+          "track_id": { "type": "integer" },
+          "model_used": { "type": "string", "enum": ["yolo", "rtdetr", "fasterrcnn"] },
+          "image_url": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["violation_id", "user_id", "track_id", "model_used", "image_url", "timestamp"]
+      }
+    }
+  ]
+}
