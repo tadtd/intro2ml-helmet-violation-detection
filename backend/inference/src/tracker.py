@@ -1,12 +1,16 @@
+import math
 from dataclasses import dataclass
+from typing import Optional
 
+from .models.base import Detection
 
 @dataclass
 class Track:
     track_id: int
     box: tuple[float, float, float, float]
+    class_name: str
+    confidence: float
     missed: int = 0
-
 
 class IoUTracker:
     def __init__(self, iou_threshold: float = 0.3, max_missed: int = 10) -> None:
@@ -15,22 +19,26 @@ class IoUTracker:
         self._next_id = 1
         self._tracks: list[Track] = []
 
-    def update(self, boxes: list[tuple[float, float, float, float]]) -> list[Track]:
+    def update(self, detections: list[Detection]) -> list[Detection]:
         matched: set[int] = set()
 
         for track in self._tracks:
             best_index = -1
             best_iou = 0.0
-            for index, box in enumerate(boxes):
+            for index, det in enumerate(detections):
                 if index in matched:
                     continue
-                score = iou(track.box, box)
+                if det.class_name != track.class_name:
+                    continue
+                
+                score = iou(track.box, det.box)
                 if score > best_iou:
                     best_iou = score
                     best_index = index
 
             if best_index >= 0 and best_iou >= self.iou_threshold:
-                track.box = boxes[best_index]
+                track.box = detections[best_index].box
+                track.confidence = detections[best_index].confidence
                 track.missed = 0
                 matched.add(best_index)
             else:
@@ -40,13 +48,30 @@ class IoUTracker:
             track for track in self._tracks if track.missed <= self.max_missed
         ]
 
-        for index, box in enumerate(boxes):
+        for index, det in enumerate(detections):
             if index not in matched:
-                self._tracks.append(Track(track_id=self._next_id, box=box))
+                self._tracks.append(Track(
+                    track_id=self._next_id, 
+                    box=det.box,
+                    class_name=det.class_name,
+                    confidence=det.confidence
+                ))
                 self._next_id += 1
 
-        return list(self._tracks)
+        # Convert back to Detection objects with track_ids
+        return [
+            Detection(
+                class_name=t.class_name, # type: ignore
+                box=t.box,
+                confidence=t.confidence,
+                track_id=t.track_id
+            )
+            for t in self._tracks
+        ]
 
+    def reset(self):
+        self._tracks.clear()
+        self._next_id = 1
 
 def iou(
     a: tuple[float, float, float, float],
@@ -62,3 +87,11 @@ def iou(
     area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
     area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
     return intersection / (area_a + area_b - intersection)
+
+def centroid_distance(
+    a: tuple[float, float, float, float],
+    b: tuple[float, float, float, float]
+) -> float:
+    c_ax, c_ay = (a[0] + a[2]) / 2, (a[1] + a[3]) / 2
+    c_bx, c_by = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+    return math.sqrt((c_ax - c_bx)**2 + (c_ay - c_by)**2)
