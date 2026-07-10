@@ -16,7 +16,7 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [x] T001 Create testing directory `tests/db/` for pgTAP tests.
+- [x] T001 Create testing directory `supabase/tests/` for pgTAP tests.
 
 ---
 
@@ -43,7 +43,7 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [x] T004 [P] [US1] Create pgTAP test for videos schema shape and constraints in `tests/db/test_schema.sql`
+- [x] T004 [P] [US1] Create pgTAP test for videos schema shape and constraints in `supabase/tests/test_schema.sql`
 
 ### Implementation for User Story 1
 
@@ -61,7 +61,7 @@
 
 ### Tests for User Story 2
 
-- [x] T006 [P] [US2] Create pgTAP test for operator/admin/service_role RLS access split in `tests/db/test_rls.sql`
+- [x] T006 [P] [US2] Create pgTAP test for operator/admin/service_role RLS access split in `supabase/tests/test_rls.sql`
 
 ### Implementation for User Story 2
 
@@ -79,7 +79,7 @@
 
 ### Tests for User Story 3
 
-- [x] T008 [P] [US3] Update pgTAP test suite with violations table validation in `tests/db/test_schema.sql`
+- [x] T008 [P] [US3] Update pgTAP test suite with violations table validation in `supabase/tests/test_schema.sql`
 
 ### Implementation for User Story 3
 
@@ -100,9 +100,9 @@
 ### Implementation for User Story 4
 
 - [x] T012 [US4] Create storage buckets migration in `supabase/migrations/20260706000006_fr019_fr020_storage_buckets.sql`
-- [x] T013 [US4] Add backend API helper function for generating Supabase `createSignedUrl` in `src/services/storage.py` (FR-021)
-- [x] T014 [US4] Update Celery beat periodic task for deleting videos > 3 days old in `src/workers/cleanup.py` to explicitly exclude videos where `status = 'processing'` (FR-022)
-- [x] T015 [US4] Create storage API helper to enforce path conventions (`user_id/video_id/filename` and `video_id/violation_id/cropname`) during uploads in `src/services/storage.py` (FR-020)
+- [x] T013 [US4] Add backend API helper function for generating Supabase `createSignedUrl` in `backend/common/common/db/storage.py` (FR-021)
+- [x] T014 [US4] Update Celery beat periodic task for deleting videos > 3 days old in `backend/orchestration/src/retention.py` to explicitly exclude videos where `status = 'processing'` (FR-022)
+- [x] T015 [US4] Create storage API helper to enforce path conventions (`user_id/video_id/filename` and `video_id/violation_id/cropname`) during uploads in `backend/common/common/db/storage.py` (FR-020)
 
 ---
 
@@ -112,7 +112,7 @@
 
 - [x] T016 Push migrations to the linked Supabase project using `supabase db push` and verify clean state via `supabase db reset --linked`.
 - [x] T017 Run validation steps in `quickstart.md` to ensure all pgTAP tests pass against the remote Supabase testing instance using `pg_prove`.
-- [x] T018 Create a data-seeding script `tests/db/seed_10k.sql` and run `EXPLAIN ANALYZE` to verify <2s query latency on `violations` filtering to satisfy SC-005.
+- [x] T018 Create a data-seeding script `supabase/tests/seed_10k.sql` and run `EXPLAIN ANALYZE` to verify <2s query latency on `violations` filtering to satisfy SC-005.
 
 ---
 
@@ -139,3 +139,10 @@
 4. Add User Story 3 (Violations table) → Verify schemas.
 5. Add User Story 4 (Buckets).
 6. Validate full suite via `supabase db push` and remote `pg_prove`.
+
+## Frontend Supabase Boundary Cleanup
+
+- [x] T019 Remove frontend direct Supabase table fallback queries such as `supabase.from("violations")`; dashboard data must use backend REST APIs.
+- [x] T020 Remove frontend direct Supabase database realtime subscriptions such as `supabase.channel(...).on("postgres_changes", ...)`; live updates must use backend WebSocket notification APIs.
+- [x] T021 Remove hardcoded or direct Supabase Storage URL construction in frontend evidence views; evidence crops must come from backend-provided `image_url` or signed URL responses.
+- [x] T022 Keep frontend Supabase utilities only for auth/session helpers and document this boundary in `frontend/utils/supabase/` comments or README.

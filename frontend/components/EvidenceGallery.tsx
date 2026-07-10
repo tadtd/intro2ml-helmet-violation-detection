@@ -18,7 +18,6 @@ export default function EvidenceGallery({
   const t = useTranslations('results');
   const confidenceThreshold = useFilterStore((state) => state.confidenceThreshold);
 
-  // Filter only 'non-helmet' violations above threshold as they represent evidence crops
   const evidenceViolations = violations.filter(
     (v) => v.label === 'non-helmet' && v.confidence >= confidenceThreshold
   );
@@ -33,9 +32,8 @@ export default function EvidenceGallery({
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto max-h-[350px] pr-1">
         {evidenceViolations.length > 0 ? (
           evidenceViolations.map((v) => {
-            // Generate Supabase S3 crop image URL
-            const cropUrl = `https://supabase.co/storage/v1/object/public/violations/crops/${v.id}.jpg`;
-            
+            const cropUrl = v.image_url || v.imageUrl;
+
             return (
               <div
                 key={v.id}
@@ -43,15 +41,19 @@ export default function EvidenceGallery({
                 className="group relative bg-slate-950 border border-slate-800/80 rounded-lg overflow-hidden cursor-pointer hover:border-sky-500 transition aspect-square"
               >
                 <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center text-slate-600 group-hover:text-sky-400 transition relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={cropUrl}
-                    alt="Violation Crop"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+                  {cropUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={cropUrl}
+                      alt="Violation Crop"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <ImageIcon className="w-8 h-8" />
+                  )}
                   <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                     <ExternalLink className="w-6 h-6 text-white" />
                   </div>

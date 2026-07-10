@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuthContext } from '../../providers';
-import { apiClient } from '../../../services/apiClient';
+import { useAuthContext } from '../../../providers';
+import { apiClient } from '../../../../services/apiClient';
 import { useTranslations } from 'next-intl';
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
 

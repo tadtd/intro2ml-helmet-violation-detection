@@ -1,4 +1,4 @@
--- tests/db/seed_10k.sql
+-- supabase/tests/seed_10k.sql
 -- Seed script to generate 10,000 records for performance benchmarking (SC-005)
 
 BEGIN;

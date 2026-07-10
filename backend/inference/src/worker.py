@@ -159,8 +159,9 @@ def process_video(
                         video_id=video_id,
                         user_id=user_id,
                         track_id=track_id,
-                        model_used=model_name,
+                        model_name=model_name,
                         image_url=crop_url,
+                        confidence=float(non_helmet.confidence),
                     )
                     logger.info(f"Inserted violation {violation_id} for track {track_id}")
 

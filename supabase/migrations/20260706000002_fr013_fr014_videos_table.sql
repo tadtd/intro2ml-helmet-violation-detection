@@ -2,6 +2,9 @@
 CREATE TABLE IF NOT EXISTS public.videos (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    filename text,
+    storage_path text,
+    content_type text,
     status text NOT NULL DEFAULT 'pending',
     error_message text,
     progress_pct integer NOT NULL DEFAULT 0 CHECK (progress_pct >= 0 AND progress_pct <= 100),

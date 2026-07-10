@@ -10,10 +10,12 @@ export interface ViolationOverlay {
   confidence: number;
   label: 'non-helmet' | 'helmet' | 'motorbike';
   isFlagged: boolean;
+  image_url?: string | null;
+  imageUrl?: string | null;
 }
 
 interface VideoPlayerWithOverlayProps {
-  src: string;
+  src?: string | null;
   violations: ViolationOverlay[];
   onTimeUpdate?: (time: number) => void;
   videoRef?: React.RefObject<HTMLVideoElement | null>;
@@ -157,11 +159,21 @@ export default function VideoPlayerWithOverlay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confidenceThreshold, violations]);
 
+  if (!src) {
+    return (
+      <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-2xl aspect-video border border-slate-800 flex items-center justify-center text-slate-500 text-sm">
+        Video source is not available yet.
+      </div>
+    );
+  }
+
+  const videoSrc = src;
+
   return (
     <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-2xl aspect-video border border-slate-800">
       <video
         ref={videoRef}
-        src={src}
+        src={videoSrc}
         controls
         className="w-full h-full object-contain"
         crossOrigin="anonymous"

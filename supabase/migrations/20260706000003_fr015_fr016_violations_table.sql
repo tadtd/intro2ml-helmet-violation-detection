@@ -3,6 +3,8 @@ CREATE TABLE IF NOT EXISTS public.violations (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     video_id uuid REFERENCES public.videos(id) ON DELETE SET NULL,
+    track_id integer,
+    image_url text,
     confidence numeric NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
     reviewed boolean NOT NULL DEFAULT false,
     reviewer_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,

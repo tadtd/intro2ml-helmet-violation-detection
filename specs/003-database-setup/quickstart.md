@@ -28,13 +28,13 @@
 
 ### Test schema (kiểm tra cấu trúc bảng và check constraints):
 ```bash
-psql $DB_URL -f tests/db/test_schema.sql
+psql $DB_URL -f supabase/tests/test_schema.sql
 ```
 **Kết quả mong đợi**: 20 dòng `ok 1` đến `ok 20`, ROLLBACK ở cuối.
 
 ### Test RLS (kiểm tra phân quyền operator/admin):
 ```bash
-psql $DB_URL -f tests/db/test_rls.sql
+psql $DB_URL -f supabase/tests/test_rls.sql
 ```
 **Kết quả mong đợi**: 6 dòng `ok 1` đến `ok 6`, ROLLBACK ở cuối.
 
@@ -42,3 +42,15 @@ psql $DB_URL -f tests/db/test_rls.sql
 - Cả 2 test file đều nằm trong transaction `BEGIN...ROLLBACK` nên **KHÔNG ghi dữ liệu thật vào DB** — an toàn khi chạy nhiều lần.
 - Nếu thấy lỗi `pgtap extension not found`, vào Supabase Dashboard → Database → Extensions → bật `pgtap`.
 
+
+
+## Frontend Supabase Boundary
+
+The frontend uses Supabase only for authentication:
+
+- Allowed: `supabase.auth.signInWithPassword()`, session refresh, and reading the current auth user/session.
+- Not allowed: direct `supabase.from(...)` table queries from frontend code.
+- Not allowed: direct `supabase.storage` reads/writes from frontend code.
+- Not allowed: direct `supabase.channel(...)` database realtime subscriptions for domain data.
+
+Frontend dashboard data, evidence crop access, exports, uploads, and realtime notifications must call backend REST/WebSocket APIs. The backend owns service-role access, storage writes, signed URL generation, and audit/RBAC enforcement.

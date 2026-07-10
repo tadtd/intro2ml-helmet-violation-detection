@@ -56,7 +56,7 @@ class AuthServicer(auth_pb2_grpc.AuthServiceServicer):
             profile = get_profile(user_id)
             return auth_pb2.GetUserProfileResponse(
                 user_id=profile.get("id", user_id),
-                full_name=profile.get("full_name", ""),
+                full_name=profile.get("display_name", ""),
                 role=profile.get("role", "operator"),
                 created_at=profile.get("created_at", ""),
             )

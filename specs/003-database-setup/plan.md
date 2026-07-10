@@ -26,7 +26,7 @@ This plan outlines the extension of the `profiles`, `videos`, and `violations` s
 
 **Performance Goals**: <2s query latency on 10k violation records (SC-005) (Scoped out of unit tests)
 
-**Constraints**: RLS must strictly isolate operator data while allowing admin/service_role bypass (SC-006).
+**Constraints**: RLS must strictly isolate operator data while allowing admin/service_role bypass (SC-006). Frontend Supabase usage is auth-only; all domain data, storage assets, and realtime events must be mediated by backend APIs/WebSockets.
 
 **Scale/Scope**: 3 core tables, 2 storage buckets, RLS policies.
 
@@ -70,8 +70,9 @@ tests/
     └── test_rls.sql           # pgTAP tests for operator/admin/service_role access
 ```
 
-**Structure Decision**: Migrations are split per Functional Requirement (FR-012 through FR-020) to provide a clear, linear progression of schema changes. Tests are located in a dedicated `tests/db/` directory. The previous `shim.sql` has been removed, as the testing environment is now a true Supabase cloud instance.
+**Structure Decision**: Migrations are split per Functional Requirement (FR-012 through FR-020) to provide a clear, linear progression of schema changes. Tests are located in `supabase/tests/` next to the canonical migrations. The previous `shim.sql` has been removed, as the testing environment is now a true Supabase cloud instance.
 *Note on FR-021 & FR-022*: FR-021 (Signed URLs) does not require a migration; it will be implemented as a backend API helper calling Supabase's `createSignedUrl`. FR-022 (Storage Expiration) will be implemented as a Celery beat periodic task (utilizing the existing worker infrastructure) rather than `pg_cron` to avoid introducing new Postgres extensions.
+*Note on frontend Supabase scope*: The frontend may keep `@supabase/supabase-js` / `@supabase/ssr` only for Supabase Auth sign-in and session refresh. It must not use Supabase client APIs for `.from(...)`, `.storage`, or `.channel(...)` domain-data access. Dashboard queries, evidence URLs, uploads, exports, and live notifications flow through backend APIs/WebSockets.
 
 ## Complexity Tracking
 
