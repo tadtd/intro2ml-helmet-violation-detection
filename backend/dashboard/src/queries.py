@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Request, Query, HTTPException, status
 
 from common.db.client import get_supabase_client
+from common.db.constants import normalize_model_name
 
 logger = logging.getLogger("dashboard.queries")
 router = APIRouter()
@@ -30,7 +31,13 @@ def list_filtered_violations(
 
         # Filters
         if model:
-            query = query.eq("model_used", model)
+            try:
+                query = query.eq("model_used", normalize_model_name(model))
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(exc),
+                ) from exc
         if startDate:
             query = query.gte("timestamp", startDate)
         if endDate:
@@ -47,6 +54,8 @@ def list_filtered_violations(
             "limit": limit,
             "offset": offset
         }
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error(f"Failed to query violations: {exc}")
         raise HTTPException(

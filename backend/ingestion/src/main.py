@@ -12,6 +12,7 @@ from common.config import get_settings
 from common.db import DBError
 from common.db.storage import upload_video as upload_video_to_storage
 from common.db.videos import insert_video
+from common.db.constants import normalize_model_name
 from common.celery import celery_app
 from .websocket import router as ws_router
 
@@ -63,20 +64,19 @@ def get_current_user(
     return payload
 
 
-SUPPORTED_MODELS = {"yolo", "rtdetr", "fasterrcnn"}
-
-
 @app.post("/upload")
 async def upload_video(
     current_user: Annotated[dict, Depends(get_current_user)],
     video: UploadFile = File(...),
     model_name: str = Form("yolo"),
 ) -> dict[str, str]:
-    if model_name not in SUPPORTED_MODELS:
+    try:
+        normalize_model_name(model_name)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="model_name must be one of: yolo, rtdetr, fasterrcnn",
-        )
+            detail=str(exc),
+        ) from exc
 
     original_filename = Path(video.filename or "uploaded-video").name or "uploaded-video"
     content = await video.read()
@@ -97,7 +97,7 @@ async def upload_video(
         video_id = insert_video(
             user_id=current_user["sub"],
             filename=original_filename,
-            model_used=model_name,
+            model_name=model_name,
             storage_path=storage_path,
             content_type=video.content_type,
         )

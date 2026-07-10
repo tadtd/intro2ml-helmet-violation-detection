@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFilterStore } from '../../../store/useFilterStore';
 import { useAuthContext } from '../../providers';
 import { apiClient } from '../../../services/apiClient';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { createClient } from '../../../utils/supabase/client';
 import Papa from 'papaparse';
 import {
   ResponsiveContainer,
@@ -59,41 +58,14 @@ export default function DashboardPage() {
         setViolations(items);
         return items;
       } catch (err) {
-        console.warn('Backend API list failed, reading from Supabase client directly', err);
-        const supabase = createClient();
-        const { data } = await supabase
-          .from('violations')
-          .select('*')
-          .order('timestamp', { ascending: false });
-        
-        const items = (data || []) as Violation[];
-        setViolations(items);
-        return items;
+        console.error('Backend API list failed', err);
+        toast.error('Khong the tai danh sach vi pham tu may chu.');
+        throw err;
       } finally {
         setIsSyncing(false);
       }
     },
   });
-
-  // 2. Setup Supabase Realtime channel for instant dashboard push alerts (FR-016)
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel('violations-realtime-dashboard')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'violations' },
-        (payload) => {
-          setViolations((current) => [payload.new as Violation, ...current]);
-          toast.info('Phát hiện vi phạm mũ bảo hiểm mới trên camera feed!');
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   // CSV Export trigger using papaparse client-side (FR-015)
   const handleExportCSV = () => {

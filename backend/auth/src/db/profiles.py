@@ -10,7 +10,7 @@ def get_profile(user_id: str) -> dict[str, Any]:
         supabase = get_supabase_client()
         response = (
             supabase.table("profiles")
-            .select("id, role, full_name")
+            .select("id, role, display_name, created_at")
             .eq("id", user_id)
             .single()
             .execute()
@@ -31,7 +31,7 @@ def upsert_profile(user_id: str, full_name: str, role: str = "operator") -> None
         supabase.table("profiles").upsert(
             {
                 "id": user_id,
-                "full_name": full_name,
+                "display_name": full_name,
                 "role": role,
             },
             on_conflict="id",

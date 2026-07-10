@@ -4,12 +4,29 @@ interface RequestOptions extends RequestInit {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
+const buildUrl = (path: string) => {
+  if (/^https?:\/\//.test(path)) {
+    return path;
+  }
+
+  return `${API_BASE_URL}${path}`;
+};
+
+const parseErrorResponse = async (response: Response) => {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const body = await response.json().catch(() => null);
+    return body?.detail || body?.message || response.statusText;
+  }
+
+  return response.statusText || 'API request failed';
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiClient(path: string, options: RequestOptions = {}): Promise<any> {
-  const url = `${API_BASE_URL}${path}`;
+  const url = buildUrl(path);
   const headers = new Headers(options.headers || {});
 
-  // Append in-memory access token if available
   if (options.token) {
     headers.set('Authorization', `Bearer ${options.token}`);
   }
@@ -23,13 +40,19 @@ export async function apiClient(path: string, options: RequestOptions = {}): Pro
     headers,
   };
 
-  let response = await fetch(url, config);
+  let response: Response;
+  try {
+    response = await fetch(url, config);
+  } catch (error) {
+    throw new Error(
+      `Cannot reach backend API at ${url}. Make sure the backend/API gateway is running and NEXT_PUBLIC_API_URL is correct.`,
+      { cause: error },
+    );
+  }
 
-  // If 401 Unauthorized, perform silent refresh
   if (response.status === 401 && path !== '/api/v1/auth/refresh' && path !== '/api/v1/auth/login') {
     try {
-      // 1. Request new access token (httpOnly cookie sent automatically)
-      const refreshResponse = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      const refreshResponse = await fetch(buildUrl('/api/v1/auth/refresh'), {
         method: 'POST',
       });
 
@@ -37,19 +60,14 @@ export async function apiClient(path: string, options: RequestOptions = {}): Pro
         const data = await refreshResponse.json();
         const newAccessToken = data.accessToken;
 
-        // Update authorization header and replay request
         headers.set('Authorization', `Bearer ${newAccessToken}`);
         response = await fetch(url, { ...options, headers });
 
-        // Broadcaster to update in-memory client context
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('auth-token-refresh', { detail: newAccessToken }));
         }
-      } else {
-        // Refresh failed, trigger logout
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth-session-expired'));
-        }
+      } else if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth-session-expired'));
       }
     } catch {
       if (typeof window !== 'undefined') {
@@ -59,11 +77,9 @@ export async function apiClient(path: string, options: RequestOptions = {}): Pro
   }
 
   if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.detail || 'API request failed');
+    throw new Error(await parseErrorResponse(response));
   }
 
-  // Handle empty responses
   if (response.status === 204) {
     return null;
   }

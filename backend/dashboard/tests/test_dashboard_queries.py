@@ -65,4 +65,4 @@ def test_list_violations_admin(mock_channel, mock_supabase):
         assert len(json_data["items"]) == 2
         # Admin should not have RLS filter eq("user_id") called
         # mock_query.eq is called once for model
-        mock_query.eq.assert_called_once_with("model_used", "yolo")
+        mock_query.eq.assert_called_once_with("model_used", "YOLO")

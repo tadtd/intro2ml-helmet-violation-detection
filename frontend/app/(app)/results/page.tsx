@@ -144,7 +144,7 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
         {/* Left column: Video player and evidence gallery */}
         <div className="lg:col-span-2 space-y-6">
           <VideoPlayerWithOverlay
-            src={videoData?.storagePath || ''}
+            src={videoData?.storagePath ?? null}
             violations={violations}
             onTimeUpdate={setCurrentTime}
             videoRef={videoRef}

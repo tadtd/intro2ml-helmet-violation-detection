@@ -37,13 +37,18 @@ The application is structured into the following services:
 
 ### 1. Supabase Initialization
 1. Create a project in [Supabase](https://supabase.com/).
-2. Create two storage buckets:
-   * **`videos`**: Access level set to **Private** (stores raw uploaded mp4s).
-   * **`violations`**: Access level set to **Public** (stores cropped violation images).
-3. Apply the SQL schema scripts found inside `backend/supabase/schema/` in order using the Supabase SQL editor:
-   * `01_profiles.sql`
-   * `02_videos.sql`
-   * `03_violations.sql`
+2. Link the local project if needed:
+   ```bash
+   npx supabase link --project-ref <project-ref>
+   ```
+3. Apply the canonical database migrations:
+   ```bash
+   npx supabase db push
+   ```
+
+The database source of truth is `supabase/`:
+* `supabase/migrations/`: schema, RLS policies, helper functions, and storage buckets.
+* `supabase/tests/`: pgTAP tests and benchmark seed SQL.
 
 ### 2. Environment Configuration
 Copy `.env.example` to `.env` in the root directory and supply your Supabase credentials:

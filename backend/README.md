@@ -58,13 +58,15 @@ REDIS_URL=redis://redis:6379/0
 
 ## Supabase Schema
 
-Run the SQL modules in `supabase/schema/` in numeric order from the Supabase SQL
-editor.
+The canonical schema is managed by Supabase CLI migrations in `../supabase/migrations/`.
+Run this from the repository root:
 
-Create two storage buckets before testing uploads:
+```bash
+npx supabase db push
+```
 
-- `videos`
-- `violations`
+Database pgTAP tests and benchmark seed SQL live in `../supabase/tests/`.
+The migrations create the `videos` and `violations` storage buckets.
 
 The API exposes:
 

@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
+import { AbstractIntlMessages } from 'next-intl';
+import { useWebSocketStatus } from '../hooks/useWebSocketStatus';
 
 interface AuthContextType {
   accessToken: string | null;
@@ -19,7 +21,10 @@ export function useAuthContext() {
   return context;
 }
 
-import { AbstractIntlMessages } from 'next-intl';
+function BackendRealtimeBridge() {
+  useWebSocketStatus();
+  return null;
+}
 
 export default function Providers({
   children,
@@ -51,7 +56,6 @@ export default function Providers({
     };
     const handleExpired = () => {
       setAccessToken(null);
-      // Clear session indicator cookies
       document.cookie = 'session_active=; Max-Age=0; path=/';
       document.cookie = 'user_role=; Max-Age=0; path=/';
       window.location.href = '/login';
@@ -70,6 +74,7 @@ export default function Providers({
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={{ accessToken, setAccessToken }}>
         <NextIntlClientProvider locale={locale} messages={messages} timeZone="Asia/Ho_Chi_Minh">
+          <BackendRealtimeBridge />
           {children}
         </NextIntlClientProvider>
       </AuthContext.Provider>

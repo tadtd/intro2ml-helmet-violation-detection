@@ -93,6 +93,8 @@ As a system administrator, I want raw uploaded video files to be deleted after 3
   - For violation crops: `video_id/violation_id/cropname`
 - **FR-021**: Client-side access to all storage assets MUST be mediated through temporary signed URLs.
 - **FR-022**: The system MUST automatically delete raw video files from the `videos` storage bucket after 3 days, while preserving all violation crops and database records permanently.
+- **FR-023**: The frontend MUST use Supabase only for authentication/session acquisition. Frontend code MUST NOT directly query Supabase Postgres tables, read/write Supabase Storage objects, or subscribe directly to database realtime channels for application data.
+- **FR-024**: All frontend access to videos, violations, evidence crops, dashboard data, exports, and realtime status MUST go through backend REST/WebSocket APIs. Backend services own service-role access, RLS bypass, signed URL generation, storage writes, and audit logic.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -116,3 +118,5 @@ As a system administrator, I want raw uploaded video files to be deleted after 3
 - **Worker Environment**: The background workers (Celery/Inference) write to the database using the Supabase `service_role` key, ensuring RLS policies do not restrict their logging or updates.
 - **Storage Cleanup implementation**: The 3-day cleanup is assumed to be run either as a scheduled background task or a storage bucket lifecycle policy depending on local deployment limitations.
 - **No Direct Storage Exposure**: Client applications will never request direct public URLs for raw videos or violation crops.
+- **Frontend Supabase Boundary**: The frontend Supabase client exists only to sign users in and obtain/refresh Supabase Auth sessions. It is not a database, storage, or realtime data client for this application.
+- **Backend Data Ownership**: Backend services are the only application layer allowed to use Supabase service-role access or call Supabase database/storage APIs for domain data.
