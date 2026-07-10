@@ -37,7 +37,8 @@ export default function LoginPage() {
       });
 
       if (error) {
-        throw new Error(error.message);
+        setErrorMessage(t('invalidCredentials'));
+        return;
       }
 
       const token = data.session?.access_token || null;
@@ -66,10 +67,9 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err: unknown) {
       const errorObj = err as Error;
-      console.error(errorObj);
-      
+
       // Local development fallback/offline mode if Supabase credentials aren't configured yet
-      if (errorObj.message.includes('API key') || errorObj.message.includes('fetch') || errorObj.message.includes('400')) {
+      if (errorObj.message.includes('API key') || errorObj.message.includes('fetch')) {
         console.warn('Supabase auth failed/offline, starting client simulation mode');
         
         // Mock successful login

@@ -50,30 +50,8 @@ export async function apiClient(path: string, options: RequestOptions = {}): Pro
     );
   }
 
-  if (response.status === 401 && path !== '/api/v1/auth/refresh' && path !== '/api/v1/auth/login') {
-    try {
-      const refreshResponse = await fetch(buildUrl('/api/v1/auth/refresh'), {
-        method: 'POST',
-      });
-
-      if (refreshResponse.ok) {
-        const data = await refreshResponse.json();
-        const newAccessToken = data.accessToken;
-
-        headers.set('Authorization', `Bearer ${newAccessToken}`);
-        response = await fetch(url, { ...options, headers });
-
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth-token-refresh', { detail: newAccessToken }));
-        }
-      } else if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('auth-session-expired'));
-      }
-    } catch {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('auth-session-expired'));
-      }
-    }
+  if (response.status === 401 && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('auth-session-expired'));
   }
 
   if (!response.ok) {

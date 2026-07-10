@@ -3,9 +3,8 @@ import logging
 from concurrent import futures
 
 import grpc
-from jose import jwt, JWTError
 
-from common.config import get_settings
+from common.auth import verify_supabase_access_token
 from .db.profiles import get_profile
 from common.grpc import auth_pb2, auth_pb2_grpc
 
@@ -14,7 +13,6 @@ logger = logging.getLogger("auth.grpc")
 
 class AuthServicer(auth_pb2_grpc.AuthServiceServicer):
     def VerifyToken(self, request, context):
-        settings = get_settings()
         token = request.token
         if not token:
             return auth_pb2.VerifyTokenResponse(is_valid=False)
@@ -23,32 +21,27 @@ class AuthServicer(auth_pb2_grpc.AuthServiceServicer):
         if token.startswith("Bearer "):
             token = token[len("Bearer ") :]
 
-        try:
-            payload = jwt.decode(
-                token,
-                settings.supabase_jwt_secret,
-                algorithms=["HS256"],
-                audience="authenticated",
-            )
-            user_id = payload.get("sub")
-            if not user_id:
-                return auth_pb2.VerifyTokenResponse(is_valid=False)
-
-            # Get user's role from DB profile
-            try:
-                profile = get_profile(user_id)
-                role = profile.get("role", "operator")
-            except Exception:
-                role = "operator"
-
-            return auth_pb2.VerifyTokenResponse(
-                is_valid=True,
-                user_id=user_id,
-                role=role,
-            )
-        except JWTError as exc:
-            logger.warning(f"JWT Verification failed: {exc}")
+        payload = verify_supabase_access_token(token)
+        if not payload:
+            logger.warning("JWT verification failed")
             return auth_pb2.VerifyTokenResponse(is_valid=False)
+
+        user_id = payload.get("sub")
+        if not user_id:
+            return auth_pb2.VerifyTokenResponse(is_valid=False)
+
+        # Get user's role from DB profile
+        try:
+            profile = get_profile(user_id)
+            role = profile.get("role", "operator")
+        except Exception:
+            role = "operator"
+
+        return auth_pb2.VerifyTokenResponse(
+            is_valid=True,
+            user_id=user_id,
+            role=role,
+        )
 
     def GetUserProfile(self, request, context):
         user_id = request.user_id

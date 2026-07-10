@@ -66,3 +66,52 @@ def test_list_violations_admin(mock_channel, mock_supabase):
         # Admin should not have RLS filter eq("user_id") called
         # mock_query.eq is called once for model
         mock_query.eq.assert_called_once_with("model_used", "YOLO")
+
+
+def test_auth_error_includes_cors_headers():
+    response = client.get(
+        "/violations",
+        headers={"Origin": "http://localhost:3000"},
+    )
+
+    assert response.status_code == 401
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+@patch("dashboard.src.queries.get_supabase_client")
+@patch("dashboard.src.middleware.grpc.aio.insecure_channel")
+def test_list_violations_model_all_skips_model_filter(mock_channel, mock_supabase):
+    from unittest.mock import AsyncMock
+    mock_stub = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.is_valid = True
+    mock_resp.user_id = "admin-123"
+    mock_resp.role = "admin"
+    mock_stub.VerifyToken = AsyncMock(return_value=mock_resp)
+
+    mock_channel_instance = MagicMock()
+    mock_channel_instance.__aenter__.return_value = mock_channel_instance
+    mock_channel.return_value = mock_channel_instance
+
+    with patch("dashboard.src.middleware.auth_pb2_grpc.AuthServiceStub", return_value=mock_stub):
+        mock_response = MagicMock()
+        mock_response.data = [
+            {"id": "v1", "user_id": "operator-456", "model_used": "YOLO", "timestamp": "2026-07-04T00:00:00Z"}
+        ]
+
+        mock_query = MagicMock()
+        mock_query.gte.return_value = mock_query
+        mock_query.lte.return_value = mock_query
+        mock_query.order.return_value = mock_query
+        mock_query.range.return_value = mock_query
+        mock_query.execute.return_value = mock_response
+
+        mock_supabase.return_value.table.return_value.select.return_value = mock_query
+
+        response = client.get(
+            "/violations?model=all",
+            headers={"Authorization": "Bearer admin-token"}
+        )
+
+        assert response.status_code == 200
+        mock_query.eq.assert_not_called()

@@ -6,8 +6,8 @@ from uuid import uuid4
 from fastapi import FastAPI, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
-from jose import JWTError, jwt
 
+from common.auth import verify_supabase_access_token
 from common.config import get_settings
 from common.db import DBError
 from common.db.storage import upload_video as upload_video_to_storage
@@ -42,24 +42,12 @@ def get_current_user(
             detail="Missing bearer token",
         )
 
-    if not settings.supabase_jwt_secret:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="SUPABASE_JWT_SECRET is not configured",
-        )
-
-    try:
-        payload = jwt.decode(
-            credentials.credentials,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
-    except JWTError as exc:
+    payload = verify_supabase_access_token(credentials.credentials, settings)
+    if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Supabase JWT",
-        ) from exc
+        )
 
     return payload
 

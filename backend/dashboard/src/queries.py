@@ -30,7 +30,7 @@ def list_filtered_violations(
             query = query.eq("user_id", user_id)
 
         # Filters
-        if model:
+        if model and model.strip().lower() != "all":
             try:
                 query = query.eq("model_used", normalize_model_name(model))
             except ValueError as exc:

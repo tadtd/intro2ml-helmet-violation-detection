@@ -25,10 +25,10 @@ def test_health():
 @patch("ingestion.src.main.upload_video_to_storage")
 @patch("ingestion.src.main.insert_video")
 @patch("ingestion.src.main.celery_app.send_task")
-@patch("ingestion.src.main.jwt.decode")
-def test_upload_video(mock_jwt, mock_send_task, mock_insert, mock_upload):
+@patch("ingestion.src.main.verify_supabase_access_token")
+def test_upload_video(mock_verify_token, mock_send_task, mock_insert, mock_upload):
     # Mock authentication
-    mock_jwt.return_value = {"sub": "user-123", "role": "operator"}
+    mock_verify_token.return_value = {"sub": "user-123", "role": "operator"}
     mock_upload.return_value = "raw/user-123/video.mp4"
     mock_insert.return_value = "video-456"
     
