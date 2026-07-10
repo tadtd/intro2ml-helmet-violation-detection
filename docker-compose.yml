@@ -9,7 +9,9 @@ services:
       - redis-data:/data
 
   traefik:
-    image: traefik:v3.0
+    # v3.6+ required: earlier versions call the Docker daemon with API 1.24,
+    # which Docker Engine 29 rejects (MinAPIVersion 1.40).
+    image: traefik:v3.6
     container_name: api-gateway
     ports:
       - "8000:8000"
@@ -54,7 +56,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ingestion.rule=PathPrefix(`/api/v1/videos`) || PathPrefix(`/ws/camera`)"
+      - "traefik.http.routers.ingestion.rule=PathPrefix(`/api/v1/videos`)"
       - "traefik.http.routers.ingestion.entrypoints=web"
       - "traefik.http.routers.ingestion.middlewares=api-strip"
       - "traefik.http.services.ingestion.loadbalancer.server.port=8002"
@@ -119,10 +121,31 @@ services:
       - .env
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - USE_STUB_INFERENCE=true
+      - USE_STUB_INFERENCE=false
     depends_on:
       - redis
       - orchestration
+
+  # Realtime detection stream. Reuses the inference image (same build context and
+  # Dockerfile, so the layers are shared) but runs a uvicorn websocket server
+  # instead of the Celery worker, keeping live streaming off the batch queue.
+  realtime:
+    build:
+      context: ./backend
+      dockerfile: inference/Dockerfile
+    container_name: realtime-stream
+    command: ["uvicorn", "inference.src.stream:app", "--host", "0.0.0.0", "--port", "8005"]
+    env_file:
+      - .env
+    environment:
+      - USE_STUB_INFERENCE=false
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.realtime.rule=PathPrefix(`/ws/camera`)"
+      - "traefik.http.routers.realtime.entrypoints=web"
+      - "traefik.http.services.realtime.loadbalancer.server.port=8005"
+    depends_on:
+      - redis
 
   frontend:
     build:

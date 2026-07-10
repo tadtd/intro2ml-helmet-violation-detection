@@ -3,9 +3,9 @@ import logging
 from concurrent import futures
 
 import grpc
-from jose import jwt, JWTError
+from jose import JWTError
 
-from common.config import get_settings
+from common.security import decode_supabase_jwt
 from .db.profiles import get_profile
 from common.grpc import auth_pb2, auth_pb2_grpc
 
@@ -14,7 +14,6 @@ logger = logging.getLogger("auth.grpc")
 
 class AuthServicer(auth_pb2_grpc.AuthServiceServicer):
     def VerifyToken(self, request, context):
-        settings = get_settings()
         token = request.token
         if not token:
             return auth_pb2.VerifyTokenResponse(is_valid=False)
@@ -24,12 +23,7 @@ class AuthServicer(auth_pb2_grpc.AuthServiceServicer):
             token = token[len("Bearer ") :]
 
         try:
-            payload = jwt.decode(
-                token,
-                settings.supabase_jwt_secret,
-                algorithms=["HS256"],
-                audience="authenticated",
-            )
+            payload = decode_supabase_jwt(token)
             user_id = payload.get("sub")
             if not user_id:
                 return auth_pb2.VerifyTokenResponse(is_valid=False)
@@ -48,6 +42,11 @@ class AuthServicer(auth_pb2_grpc.AuthServiceServicer):
             )
         except JWTError as exc:
             logger.warning(f"JWT Verification failed: {exc}")
+            return auth_pb2.VerifyTokenResponse(is_valid=False)
+        except OSError as exc:
+            # JWKS fetch failed: the token may well be valid, so do not cache a
+            # verdict, just refuse this request.
+            logger.error(f"Could not fetch JWKS for token verification: {exc}")
             return auth_pb2.VerifyTokenResponse(is_valid=False)
 
     def GetUserProfile(self, request, context):
