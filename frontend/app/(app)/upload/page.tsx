@@ -7,8 +7,9 @@ import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../services/apiClient';
 import UploadQueue from '../../../components/UploadQueue';
-import { Upload } from 'tus-js-client';
 import { UploadCloud, CheckCircle, AlertTriangle } from 'lucide-react';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export default function UploadPage() {
   const t = useTranslations('upload');
@@ -25,31 +26,7 @@ export default function UploadPage() {
   // TanStack Query for Job list tracking (with 3-second polling fallback if WebSockets aren't active)
   const { data: jobs, refetch } = useQuery({
     queryKey: ['jobs'],
-    queryFn: async () => {
-      try {
-        return await apiClient('/api/v1/videos/jobs', { token: accessToken });
-      } catch (err) {
-        // Fallback for local debugging/mocking if backend endpoint is unavailable
-        console.warn('Backend job listing failed, returning client fallback states', err);
-        return [
-          {
-            jobId: 'e12f0f4a-9b48-4061-8409-f6a73c9c6145',
-            fileName: 'sample_traffic_feed.mp4',
-            status: 'done',
-            modelUsed: 'yolo',
-            createdAt: new Date(Date.now() - 600000).toISOString(),
-            completedAt: new Date(Date.now() - 300000).toISOString(),
-          },
-          {
-            jobId: 'd39a041f-8b22-42da-aa1e-0129cd8a712c',
-            fileName: 'intersection_north.mp4',
-            status: 'processing',
-            modelUsed: 'rtdetr',
-            createdAt: new Date().toISOString(),
-          }
-        ];
-      }
-    },
+    queryFn: async () => apiClient('/api/v1/videos/jobs', { token: accessToken }),
     refetchInterval: 3000,
   });
 
@@ -72,34 +49,43 @@ export default function UploadPage() {
       }
 
       const uploadId = `${Date.now()}-${file.name}`;
-      
-      // Initialize TUS upload (FR-005)
-      const tusUpload = new Upload(file, {
-        endpoint: '/api/v1/ingest/upload',
-        chunkSize: 5 * 1024 * 1024, // 5MB chunks
-        metadata: {
-          filename: file.name,
-          filetype: file.type,
-          model_used: model,
-        },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        onError: (err) => {
-          setStatus(uploadId, 'failed', err.message);
-        },
-        onProgress: (bytesSent, bytesTotal) => {
-          const progress = (bytesSent / bytesTotal) * 100;
-          updateProgress(uploadId, progress);
-        },
-        onSuccess: () => {
+
+      const body = new FormData();
+      body.append('video', file);
+      body.append('model_name', model);
+
+      const request = new XMLHttpRequest();
+      request.open('POST', `${API_BASE_URL}/api/v1/videos/upload`);
+      request.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+
+      request.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          updateProgress(uploadId, (event.loaded / event.total) * 100);
+        }
+      };
+
+      request.onload = () => {
+        if (request.status >= 200 && request.status < 300) {
           setStatus(uploadId, 'completed');
           refetch();
-        },
-      });
+          return;
+        }
 
-      addUpload(uploadId, file.name, file.size, tusUpload);
-      tusUpload.start();
+        let detail = `Upload failed (HTTP ${request.status})`;
+        try {
+          detail = JSON.parse(request.responseText).detail || detail;
+        } catch {
+          // Non-JSON error body: keep the status-code message.
+        }
+        setStatus(uploadId, 'failed', detail);
+      };
+
+      request.onerror = () => {
+        setStatus(uploadId, 'failed', 'Không thể kết nối tới máy chủ tải lên.');
+      };
+
+      addUpload(uploadId, file.name, file.size, request);
+      request.send(body);
     }
   }, [accessToken, model, addUpload, updateProgress, setStatus, refetch]);
 

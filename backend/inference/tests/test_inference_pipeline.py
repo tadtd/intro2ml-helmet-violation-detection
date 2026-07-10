@@ -18,7 +18,7 @@ with patch("common.config.get_settings", return_value=dummy_settings):
     from inference.src.worker import process_video
 
 
-@patch("inference.src.worker.get_supabase_client")
+@patch("inference.src.worker.get_video_url")
 @patch("inference.src.worker.update_video_status")
 @patch("inference.src.worker.insert_violation")
 @patch("inference.src.worker.upload_crop")
@@ -33,7 +33,7 @@ def test_process_video_pipeline(
     mock_upload_crop,
     mock_insert_violation,
     mock_update_status,
-    mock_supabase_client
+    mock_get_video_url
 ):
     # Mock video capture returning 1 mock frame
     mock_cap = MagicMock()
