@@ -6,11 +6,12 @@ import { useFilterStore } from '../../../store/useFilterStore';
 import { useAuthContext } from '../../providers';
 import { apiClient } from '../../../services/apiClient';
 import VideoPlayerWithOverlay, { ViolationOverlay } from '../../../components/VideoPlayerWithOverlay';
+import DetectionReplay from '../../../components/DetectionReplay';
 import ViolationTimeline from '../../../components/ViolationTimeline';
 import EvidenceGallery from '../../../components/EvidenceGallery';
 import ViolationReview from '../../../components/ViolationReview';
 import { useTranslations } from 'next-intl';
-import { Sliders, ArrowLeft } from 'lucide-react';
+import { Sliders, ArrowLeft, Film, Cpu } from 'lucide-react';
 import Link from 'next/link';
 
 interface ResultsPageProps {
@@ -27,22 +28,14 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
   const setConfidenceThreshold = useFilterStore((state) => state.setConfidenceThreshold);
 
   const [currentTime, setCurrentTime] = useState(0);
+  const [viewMode, setViewMode] = useState<'original' | 'detect'>('original');
 
   // Fetch video details
   const { data: videoData } = useQuery({
     queryKey: ['video', video_id],
     queryFn: async () => {
       if (!video_id) return null;
-      try {
-        return await apiClient(`/api/v1/videos/${video_id}`, { token: accessToken });
-      } catch (err) {
-        console.warn('Backend video lookup failed, returning local debugging file path', err);
-        return {
-          id: video_id,
-          filename: 'sample_traffic_feed.mp4',
-          storagePath: 'https://www.w3schools.com/html/mov_bbb.mp4', // public fallback MP4 video
-        };
-      }
+      return apiClient(`/api/v1/videos/${video_id}`, { token: accessToken });
     },
     enabled: !!video_id,
   });
@@ -52,38 +45,11 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
     queryKey: ['violations', video_id],
     queryFn: async () => {
       if (!video_id) return [];
-      try {
-        const response = await apiClient(`/api/v1/violations?video_id=${video_id}`, { token: accessToken });
-        return response.items || [];
-      } catch (err) {
-        console.warn('Backend violations call failed, using mock telemetry list', err);
-        return [
-          {
-            id: 'v1',
-            timestamp: 2.5,
-            bbox: [100, 150, 250, 350],
-            confidence: 0.88,
-            label: 'non-helmet',
-            isFlagged: false,
-          },
-          {
-            id: 'v2',
-            timestamp: 6.2,
-            bbox: [400, 200, 550, 420],
-            confidence: 0.94,
-            label: 'helmet',
-            isFlagged: false,
-          },
-          {
-            id: 'v3',
-            timestamp: 8.5,
-            bbox: [200, 180, 320, 390],
-            confidence: 0.45,
-            label: 'non-helmet',
-            isFlagged: false,
-          },
-        ] as ViolationOverlay[];
-      }
+      const response = await apiClient(
+        `/api/v1/violations?video_id=${encodeURIComponent(video_id)}`,
+        { token: accessToken },
+      );
+      return response.items || [];
     },
     enabled: !!video_id,
   });
@@ -143,12 +109,45 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column: Video player and evidence gallery */}
         <div className="lg:col-span-2 space-y-6">
-          <VideoPlayerWithOverlay
-            src={videoData?.storagePath ?? null}
-            violations={violations}
-            onTimeUpdate={setCurrentTime}
-            videoRef={videoRef}
-          />
+          {/* Toggle: original playback vs. re-run through the detector (draws boxes) */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMode('original')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                viewMode === 'original'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5" />
+              Video gốc
+            </button>
+            <button
+              onClick={() => setViewMode('detect')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                viewMode === 'detect'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              Phát hiện AI
+            </button>
+          </div>
+
+          {viewMode === 'original' ? (
+            <VideoPlayerWithOverlay
+              src={videoData?.storagePath ?? null}
+              violations={violations}
+              onTimeUpdate={setCurrentTime}
+              videoRef={videoRef}
+            />
+          ) : (
+            <DetectionReplay
+              src={videoData?.storagePath ?? null}
+              model={videoData?.modelUsed ?? 'yolo'}
+            />
+          )}
           <EvidenceGallery
             violations={violations}
             onSelectCrop={handleSeek}
