@@ -1,3 +1,5 @@
+import { createClient } from '../utils/supabase/client';
+
 interface RequestOptions extends RequestInit {
   token?: string | null;
 }
@@ -50,29 +52,22 @@ export async function apiClient(path: string, options: RequestOptions = {}): Pro
     );
   }
 
-  if (response.status === 401 && path !== '/api/v1/auth/refresh' && path !== '/api/v1/auth/login') {
+  // There is no backend refresh endpoint: Supabase issues and rotates the tokens,
+  // so ask it for a current session (it renews an expired one) and retry once.
+  if (response.status === 401 && typeof window !== 'undefined') {
     try {
-      const refreshResponse = await fetch(buildUrl('/api/v1/auth/refresh'), {
-        method: 'POST',
-      });
+      const { data } = await createClient().auth.getSession();
+      const newAccessToken = data.session?.access_token;
 
-      if (refreshResponse.ok) {
-        const data = await refreshResponse.json();
-        const newAccessToken = data.accessToken;
-
+      if (newAccessToken && newAccessToken !== options.token) {
         headers.set('Authorization', `Bearer ${newAccessToken}`);
         response = await fetch(url, { ...options, headers });
-
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth-token-refresh', { detail: newAccessToken }));
-        }
-      } else if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth-token-refresh', { detail: newAccessToken }));
+      } else if (!newAccessToken) {
         window.dispatchEvent(new CustomEvent('auth-session-expired'));
       }
     } catch {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('auth-session-expired'));
-      }
+      window.dispatchEvent(new CustomEvent('auth-session-expired'));
     }
   }
 

@@ -67,6 +67,8 @@
     "locationBreakdown": "Thống kê theo vị trí",
     "exportCSV": "Xuất Excel/CSV",
     "exportPDF": "Xuất Báo cáo PDF",
-    "healthStatus": "Trạng thái dịch vụ"
+    "healthStatus": "Trạng thái dịch vụ",
+    "reviewBreakdown": "Trạng thái phê duyệt",
+    "videosWithViolations": "Video có vi phạm"
   }
 }
