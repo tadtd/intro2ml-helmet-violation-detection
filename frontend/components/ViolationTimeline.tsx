@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useFilterStore } from '../store/useFilterStore';
 import { useTranslations } from 'next-intl';
 import { Clock, ShieldAlert, ShieldCheck, FileText } from 'lucide-react';
 import { ViolationOverlay } from './VideoPlayerWithOverlay';
@@ -9,21 +8,20 @@ import { ViolationOverlay } from './VideoPlayerWithOverlay';
 interface ViolationTimelineProps {
   violations: ViolationOverlay[];
   currentTime: number;
-  onSeek: (time: number) => void;
+  selectedId: string | null;
+  onSelect: (violation: ViolationOverlay) => void;
 }
 
 export default function ViolationTimeline({
   violations,
   currentTime,
-  onSeek,
+  selectedId,
+  onSelect,
 }: ViolationTimelineProps) {
   const t = useTranslations('results');
-  const confidenceThreshold = useFilterStore((state) => state.confidenceThreshold);
 
-  // Filter violations based on local Zustand threshold
-  const filteredViolations = violations.filter(
-    (v) => v.confidence >= confidenceThreshold
-  );
+  // The parent already limits this to the pending, confidence-agnostic queue.
+  const filteredViolations = violations;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -42,11 +40,11 @@ export default function ViolationTimeline({
       <div className="space-y-2 overflow-y-auto max-h-[400px] flex-1 pr-1">
         {filteredViolations.length > 0 ? (
           filteredViolations.map((v) => {
-            const isActive = Math.abs(v.timestamp - currentTime) <= 0.5;
+            const isActive = v.id === selectedId;
             return (
               <button
                 key={v.id}
-                onClick={() => onSeek(v.timestamp)}
+                onClick={() => onSelect(v)}
                 className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition cursor-pointer ${
                   isActive
                     ? 'bg-sky-950/40 border-sky-500 text-sky-300'

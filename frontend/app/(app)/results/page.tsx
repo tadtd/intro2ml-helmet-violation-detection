@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, use, useMemo } from 'react';
+import React, { useState, useRef, use, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFilterStore } from '../../../store/useFilterStore';
 import { useAuthContext } from '../../providers';
@@ -29,6 +29,7 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
 
   const [currentTime, setCurrentTime] = useState(0);
   const [viewMode, setViewMode] = useState<'original' | 'detect'>('original');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Fetch video details
   const { data: videoData } = useQuery({
@@ -54,13 +55,6 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
     enabled: !!video_id,
   });
 
-  const handleSeek = (time: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
-      setCurrentTime(time);
-    }
-  };
-
   const handleConfidenceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setConfidenceThreshold(parseFloat(e.target.value));
   };
@@ -78,6 +72,23 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
       };
     }) as ViolationOverlay[];
   }, [violationsData]);
+
+  // The review queue only holds violations that have not been reviewed yet;
+  // once approved or dismissed, a violation leaves this list.
+  const pendingViolations = violations.filter(
+    (v) => !(v as { reviewed?: boolean }).reviewed
+  );
+  const selectedViolation = pendingViolations.find((v) => v.id === selectedId) ?? null;
+
+  // Keep a pending violation selected; when the selected one leaves the queue,
+  // move to the next one so the reviewer can keep going.
+  useEffect(() => {
+    if (pendingViolations.length === 0) {
+      if (selectedId !== null) setSelectedId(null);
+    } else if (!pendingViolations.some((v) => v.id === selectedId)) {
+      setSelectedId(pendingViolations[0].id);
+    }
+  }, [pendingViolations, selectedId]);
 
   return (
     <div className="flex flex-col space-y-6 p-6 text-white max-w-7xl mx-auto">
@@ -161,8 +172,9 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
             />
           )}
           <EvidenceGallery
-            violations={violations}
-            onSelectCrop={handleSeek}
+            violations={pendingViolations}
+            selectedId={selectedId}
+            onSelect={(v) => setSelectedId(v.id)}
           />
         </div>
 
@@ -170,15 +182,13 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
         <div className="flex flex-col gap-6">
           <div className="flex-1">
             <ViolationTimeline
-              violations={violations}
+              violations={pendingViolations}
               currentTime={currentTime}
-              onSeek={handleSeek}
+              selectedId={selectedId}
+              onSelect={(v) => setSelectedId(v.id)}
             />
           </div>
-          <ViolationReview
-            violations={violations}
-            currentTime={currentTime}
-          />
+          <ViolationReview violation={selectedViolation} />
         </div>
       </div>
     </div>

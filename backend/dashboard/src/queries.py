@@ -1,6 +1,6 @@
 import logging
 from typing import Any
-from fastapi import APIRouter, Request, Query, HTTPException, status
+from fastapi import APIRouter, Body, Request, Query, HTTPException, status
 
 from common.db.client import get_supabase_client
 from common.db.constants import normalize_model_name
@@ -75,4 +75,48 @@ def list_filtered_violations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query violations: {str(exc)}",
+        )
+
+
+@router.patch("/violations/{violation_id}")
+def review_violation(
+    violation_id: str,
+    request: Request,
+    payload: dict[str, Any] = Body(default_factory=dict),
+) -> dict[str, Any]:
+    """Mark a violation as reviewed. `isFlagged` true means the detection was a
+    false positive; false means the violation is confirmed."""
+    user_id = request.state.user_id
+    role = request.state.role
+    is_flagged = bool(payload.get("isFlagged", False))
+    verdict = "false positive" if is_flagged else "confirmed"
+
+    try:
+        supabase = get_supabase_client()
+        existing = (
+            supabase.table("violations")
+            .select("user_id")
+            .eq("id", violation_id)
+            .single()
+            .execute()
+        )
+        if not existing.data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Violation not found")
+
+        # Operators may only review their own violations; admins may review any.
+        if role != "admin" and existing.data.get("user_id") != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your violation")
+
+        supabase.table("violations").update(
+            {"reviewed": True, "verdict": verdict, "reviewer_id": user_id}
+        ).eq("id", violation_id).execute()
+
+        return {"id": violation_id, "reviewed": True, "verdict": verdict}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Failed to review violation {violation_id}: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to review violation",
         )

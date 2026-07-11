@@ -34,6 +34,7 @@ type Violation = {
   model_used: string | null;
   confidence: number | null;
   reviewed?: boolean;
+  verdict?: string | null;
   is_flagged?: boolean;
 };
 
@@ -164,9 +165,10 @@ export default function DashboardPage() {
     ].filter((slice) => slice.value > 0);
   }, [violations, tr, ts]);
 
-  const averageConfidence = violations.length
-    ? violations.reduce((sum, v) => sum + Number(v.confidence ?? 0), 0) / violations.length
-    : 0;
+  // Accuracy = how many detections a human approved (confirmed) out of everything
+  // the model flagged: approved / total. Dismissed detections count against it.
+  const approvedCount = violations.filter((v) => v.verdict === 'confirmed').length;
+  const accuracyRate = violations.length ? (approvedCount / violations.length) * 100 : 0;
 
   const videosWithViolations = new Set(violations.map((v) => v.video_id).filter(Boolean)).size;
 
@@ -243,7 +245,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('accuracyRate')}</p>
             <h3 className="text-3xl font-extrabold text-white mt-1">
-              {violations.length ? `${(averageConfidence * 100).toFixed(1)}%` : '—'}
+              {violations.length ? `${accuracyRate.toFixed(1)}%` : '—'}
             </h3>
           </div>
         </div>
@@ -349,15 +351,29 @@ export default function DashboardPage() {
                     <td className="px-6 py-4 font-mono">{v.track_id ?? '-'}</td>
                     <td className="px-6 py-4 capitalize">{v.model_used || 'yolo'}</td>
                     <td className="px-6 py-4">
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          v.is_flagged
-                            ? 'bg-rose-950/30 text-rose-400 border border-rose-900/40'
-                            : 'bg-emerald-950/30 text-emerald-400 border border-emerald-900/40'
-                        }`}
-                      >
-                        {v.is_flagged ? tr('flagged') : 'Approved'}
-                      </span>
+                      {(() => {
+                        const reviewed = (v as { reviewed?: boolean }).reviewed;
+                        const verdict = (v as { verdict?: string | null }).verdict;
+                        if (!reviewed) {
+                          return (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                              {ts('pending')}
+                            </span>
+                          );
+                        }
+                        const isFalsePositive = verdict === 'false positive';
+                        return (
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isFalsePositive
+                                ? 'bg-rose-950/30 text-rose-400 border border-rose-900/40'
+                                : 'bg-emerald-950/30 text-emerald-400 border border-emerald-900/40'
+                            }`}
+                          >
+                            {isFalsePositive ? 'Đã bỏ qua' : 'Đã duyệt'}
+                          </span>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))
