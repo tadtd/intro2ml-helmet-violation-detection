@@ -37,6 +37,19 @@ def _center(box: Box) -> tuple[float, float]:
     return (x1 + x2) / 2, (y1 + y2) / 2
 
 
+# A non-helmet box that covers a whole rider is clearly taller than wide (the
+# dataset averages height/width ~1.64), whereas a head-only box is roughly square.
+# Head-only boxes are dropped: they carry no evidence of the rider.
+MIN_PERSON_ASPECT = 1.3
+
+
+def _covers_person(box: Box) -> bool:
+    x1, y1, x2, y2 = box
+    width = x2 - x1
+    height = y2 - y1
+    return width > 0 and (height / width) >= MIN_PERSON_ASPECT
+
+
 def _contains(box: Box, point: tuple[float, float]) -> bool:
     x1, y1, x2, y2 = box
     x, y = point
@@ -57,23 +70,21 @@ def _association_score(motorbike: Detection, head: Detection) -> float:
 
 @dataclass(frozen=True)
 class Violation:
-    motorbike: Detection
+    # The motorbike is optional: it only improves the evidence crop when found.
+    motorbike: Detection | None
     non_helmet: Detection
 
 
 def find_violations(
     detections: list[Detection],
-    min_confidence: float = 0.5,
+    min_confidence: float = 0.0,
 ) -> list[Violation]:
-    """Pair each bare head with the motorbike it is riding.
+    """Every detected bare head is a violation.
 
-    A head is attributed to the motorbike whose rider zone contains the head's
-    centre; when several qualify, the nearest one wins. Iterating over heads
-    rather than motorbikes keeps one head from being reported twice when two
-    bikes ride side by side.
+    A motorbike is attached when its rider zone contains the head (which makes
+    the evidence crop show the whole rider), but a violation is recorded for any
+    non-helmet detection regardless of whether a motorbike is found.
     """
-    # Low-confidence boxes are typically oversized and would stretch the rider
-    # zone over half the frame, so drop them on both classes.
     motorbikes = [
         item
         for item in detections
@@ -82,7 +93,9 @@ def find_violations(
     non_helmets = [
         item
         for item in detections
-        if item.class_name == "non-helmet" and item.confidence >= min_confidence
+        if item.class_name == "non-helmet"
+        and item.confidence >= min_confidence
+        and _covers_person(item.box)
     ]
 
     violations: list[Violation] = []
@@ -92,7 +105,8 @@ def find_violations(
             key=lambda item: _association_score(item, head),
             default=None,
         )
-        if linked is not None and _association_score(linked, head) > 0.0:
-            violations.append(Violation(motorbike=linked, non_helmet=head))
+        if linked is not None and _association_score(linked, head) <= 0.0:
+            linked = None
+        violations.append(Violation(motorbike=linked, non_helmet=head))
 
     return violations

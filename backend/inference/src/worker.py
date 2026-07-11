@@ -76,8 +76,13 @@ def process_video(
         logger.info(f"Video metadata: {width}x{height} @ {fps} FPS, {total_frames} frames total")
 
         tracker = IoUTracker(iou_threshold=0.3)
+        # A dedicated, lenient tracker for the bare-head boxes so the same rider
+        # keeps one id across sampled frames instead of fragmenting into many
+        # duplicate violations. Low IoU + long memory tolerate frame skipping.
+        nh_tracker = IoUTracker(iou_threshold=0.1, max_missed=30)
         processed_tracks = set()
         track_histories = {}  # track_id -> list of box coordinates
+        nh_histories = {}  # non-helmet track_id -> list of box coordinates
 
         frame_idx = 0
         while True:
@@ -115,25 +120,41 @@ def process_video(
             # Find motorbike + non-helmet associations
             violations = find_violations(detections)
 
+            # Track the bare-head boxes on their own so one rider maps to one id.
+            from .tracker import iou
+            nh_tracks = nh_tracker.update([viol.non_helmet.box for viol in violations])
+            for track in nh_tracks:
+                nh_histories.setdefault(track.track_id, []).append(track.box)
+
             for viol in violations:
                 non_helmet = viol.non_helmet
-                # Assign a pseudo track ID if it's matched with motorbike track ID
-                track_id = getattr(viol.motorbike, "track_id", None) or 999
-                
-                # Apply stationary vehicle filtering heuristic
-                if track_id in track_histories:
-                    if is_stationary(track_histories[track_id], threshold=5.0):
-                        logger.info(f"Skipping stationary track {track_id}")
+                # Dedup id = the head tracker's id for this box (best IoU match).
+                track_id = None
+                best_iou = 0.0
+                for track in nh_tracks:
+                    score = iou(non_helmet.box, track.box)
+                    if score > best_iou:
+                        best_iou = score
+                        track_id = track.track_id
+                if track_id is None:
+                    track_id = 900000 + len(processed_tracks)
+
+                # Skip a rider whose head has not moved (parked / standing).
+                if track_id in nh_histories:
+                    if is_stationary(nh_histories[track_id], threshold=5.0):
+                        logger.info(f"Skipping stationary head track {track_id}")
                         continue
 
-                # Check if we have already reported this violation for this track
+                # One violation per rider, even across many sampled frames.
                 if track_id in processed_tracks:
                     continue
                 processed_tracks.add(track_id)
 
-                # Compute composite union crop box coordinates
+                # Crop the whole rider when a motorbike is matched, otherwise just
+                # the non-helmet detection (which already covers the person).
+                crop_box = viol.motorbike.box if viol.motorbike is not None else non_helmet.box
                 ux1, uy1, ux2, uy2 = get_composite_union_box(
-                    viol.motorbike.box,
+                    crop_box,
                     non_helmet.box,
                     width,
                     height
