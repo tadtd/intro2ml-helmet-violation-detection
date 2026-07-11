@@ -8,4 +8,4 @@ __pycache__
 *.avi
 *.mov
 *.mkv
-backend/app/weights/*
+# backend/app/weights/*.onnx

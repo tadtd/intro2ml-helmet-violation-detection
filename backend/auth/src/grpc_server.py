@@ -35,19 +35,27 @@ class AuthServicer(auth_pb2_grpc.AuthServiceServicer):
             except Exception:
                 role = "operator"
 
-            return auth_pb2.VerifyTokenResponse(
-                is_valid=True,
-                user_id=user_id,
-                role=role,
-            )
-        except JWTError as exc:
-            logger.warning(f"JWT Verification failed: {exc}")
+        user_id = payload.get("sub")
+        if not user_id:
             return auth_pb2.VerifyTokenResponse(is_valid=False)
         except OSError as exc:
             # JWKS fetch failed: the token may well be valid, so do not cache a
             # verdict, just refuse this request.
             logger.error(f"Could not fetch JWKS for token verification: {exc}")
             return auth_pb2.VerifyTokenResponse(is_valid=False)
+
+        # Get user's role from DB profile
+        try:
+            profile = get_profile(user_id)
+            role = profile.get("role", "operator")
+        except Exception:
+            role = "operator"
+
+        return auth_pb2.VerifyTokenResponse(
+            is_valid=True,
+            user_id=user_id,
+            role=role,
+        )
 
     def GetUserProfile(self, request, context):
         user_id = request.user_id

@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError
 
+from common.auth import verify_supabase_access_token
 from common.config import get_settings
 from common.db import DBError
 from common.db.client import get_supabase_client

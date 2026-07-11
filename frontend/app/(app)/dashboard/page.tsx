@@ -51,11 +51,21 @@ export default function DashboardPage() {
   // 1. Fetch violations list from REST API
   const { refetch } = useQuery({
     queryKey: ['violations', dateRange, selectedModel],
+    enabled: Boolean(accessToken),
     queryFn: async () => {
       try {
         setIsSyncing(true);
+        const params = new URLSearchParams({
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+        });
+
+        if (selectedModel !== 'all') {
+          params.set('model', selectedModel);
+        }
+
         const response = await apiClient(
-          `/api/v1/violations?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&model=${selectedModel}`,
+          `/api/v1/violations?${params.toString()}`,
           { token: accessToken }
         );
         const items = response.items || [];
