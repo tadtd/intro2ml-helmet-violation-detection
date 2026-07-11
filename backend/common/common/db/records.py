@@ -18,6 +18,7 @@ class ViolationInsert(TypedDict):
     model_used: ModelName
     image_url: str
     confidence: float
+    video_offset: float
 
 
 class VideoStatusUpdate(TypedDict):

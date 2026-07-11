@@ -75,6 +75,7 @@ export default function VideoPlayerWithOverlay({
     });
 
     activeOverlays.forEach((overlay) => {
+      if (!overlay.bbox || !Array.isArray(overlay.bbox) || overlay.bbox.length < 4) return;
       const [x1, y1, x2, y2] = overlay.bbox;
       const x = x1 * scaleX;
       const y = y1 * scaleY;
@@ -107,10 +108,6 @@ export default function VideoPlayerWithOverlay({
       ctx.fillStyle = '#ffffff';
       ctx.fillText(labelText, x + 5, y - 5);
     });
-
-    if (onTimeUpdate) {
-      onTimeUpdate(currentTime);
-    }
   };
 
   const renderLoop = () => {
@@ -178,6 +175,11 @@ export default function VideoPlayerWithOverlay({
         className="w-full h-full object-contain"
         crossOrigin="anonymous"
         onLoadedData={updateCanvasSize}
+        onTimeUpdate={(e) => {
+          if (onTimeUpdate) {
+            onTimeUpdate(e.currentTarget.currentTime);
+          }
+        }}
       />
       <canvas
         ref={canvasRef}

@@ -19,6 +19,7 @@ def insert_violation(
     model_name: str,
     image_url: str,
     confidence: float,
+    video_offset: float,
 ) -> str:
     """Insert a helmet violation row and return the new row id."""
     if not 0 <= confidence <= 1:
@@ -32,6 +33,7 @@ def insert_violation(
             "model_used": normalize_model_name(model_name),
             "image_url": image_url,
             "confidence": confidence,
+            "video_offset": video_offset,
         }
         response = get_supabase_client().table("violations").insert(payload).execute()
         data = response.data or []

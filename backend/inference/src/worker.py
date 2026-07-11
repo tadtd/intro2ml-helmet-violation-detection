@@ -154,6 +154,7 @@ def process_video(
 
                 # Insert violation record into Supabase DB
                 try:
+                    video_offset = float(frame_idx) / fps
                     violation_id = insert_violation(
                         video_id=video_id,
                         user_id=user_id,
@@ -161,6 +162,7 @@ def process_video(
                         model_name=model_name,
                         image_url=crop_url,
                         confidence=float(non_helmet.confidence),
+                        video_offset=video_offset,
                     )
                     logger.info(f"Inserted violation {violation_id} for track {track_id}")
 

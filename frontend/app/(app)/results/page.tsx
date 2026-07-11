@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, use } from 'react';
+import React, { useState, useRef, use, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFilterStore } from '../../../store/useFilterStore';
 import { useAuthContext } from '../../providers';
@@ -65,7 +65,19 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
     setConfidenceThreshold(parseFloat(e.target.value));
   };
 
-  const violations = (violationsData || []) as ViolationOverlay[];
+  const violations = useMemo(() => {
+    return (violationsData || []).map((v: any) => {
+      let offset = typeof v.video_offset === 'number' ? v.video_offset : parseFloat(v.video_offset);
+      if (isNaN(offset)) {
+        offset = 0;
+      }
+      return {
+        ...v,
+        timestamp: offset,
+        label: 'non-helmet',
+      };
+    }) as ViolationOverlay[];
+  }, [violationsData]);
 
   return (
     <div className="flex flex-col space-y-6 p-6 text-white max-w-7xl mx-auto">
