@@ -17,12 +17,29 @@ The application is structured into the following services:
 
 * **`api-gateway` (Traefik)**: Entrypoint proxying requests and WebSocket streams to backend services.
 * **`auth`**: Handles operator/admin profiles and token verification over gRPC on port `50051`.
-* **`ingestion`**: Handles video upload REST endpoints and pipes raw MJPEG camera frame streams over WebSockets.
+* **`ingestion`**: Handles video upload REST endpoints and video/job listing APIs.
 * **`inference`**: Celery worker performing ONNX-runtime deep learning model inference (YOLO, RT-DETR, Faster R-CNN) with object tracking and violation association heuristics.
+* **`realtime`**: Reuses the inference image but runs a uvicorn WebSocket server (`/ws/camera`). It decodes any RTSP/HLS/file source, runs live ONNX detection, and streams annotated JPEG frames to the browser.
 * **`notification`**: Redis subscriber broadcasting real-time alert updates and job status logs over WebSockets.
 * **`dashboard`**: Provides paginated REST APIs for violation auditing with gRPC-based role authorization (RLS enforcement).
 * **`orchestration`**: Periodically prunes raw files from Supabase Storage based on a 3-day retention policy.
 * **`frontend` (Next.js)**: Modern responsive dashboard for live camera viewing, video uploads, and violation auditing.
+
+---
+
+## 📹 Live Camera Monitoring
+
+The **Giám sát camera** page runs a live WebSocket stream that decodes a source,
+runs the ONNX model frame-by-frame, and overlays detection boxes plus a running
+violation count. The source can be:
+
+* a bundled demo clip,
+* **any RTSP or HLS URL**, or
+* **a YouTube live/video URL** — the backend resolves it with `yt-dlp` and runs
+  detection on it, so pasting a live traffic stream works out of the box.
+
+The same pipeline plugs straight into a real camera feed. Override the
+per-location demo sources with `CAMERA_SRC_CAM_01/02/03` env vars.
 
 ---
 
@@ -95,10 +112,18 @@ uv run backend/seed_users.py
 
 ## 📦 Model Weights (Optional)
 
-For local model evaluations (bypassing the mock detector `USE_STUB_INFERENCE=true`), place the exported ONNX model weights under `backend/weights/`:
+By default `docker-compose.yml` sets `USE_STUB_INFERENCE=true`, so the stack runs with a mock detector and needs no weights.
+
+To run real inference, place the exported ONNX model weights under `backend/inference/weights/`:
 * `yolo_best.onnx`
 * `rtdetr_best.onnx`
 * `fasterrcnn_best.onnx`
+
+Then set `USE_STUB_INFERENCE=false` on the `inference` service and rebuild (the weights are baked into the image, so `docker compose up` alone will not pick them up):
+
+```bash
+docker compose up --build
+```
 
 ---
 
@@ -106,8 +131,13 @@ For local model evaluations (bypassing the mock detector `USE_STUB_INFERENCE=tru
 
 We use `pytest` for unit and integration testing. Run all workspace suites from the root directory:
 
+```bash
+PYTHONPATH=backend uv run pytest backend/ingestion/ backend/inference/ backend/notification/ backend/dashboard/ backend/orchestration/
+```
+
+On PowerShell:
+
 ```powershell
-# Set pythonpath and run pytest
 $env:PYTHONPATH="backend"
 uv run pytest backend/ingestion/ backend/inference/ backend/notification/ backend/dashboard/ backend/orchestration/
 ```

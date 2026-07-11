@@ -3,8 +3,9 @@ import logging
 from concurrent import futures
 
 import grpc
+from jose import JWTError
 
-from common.auth import verify_supabase_access_token
+from common.security import decode_supabase_jwt
 from .db.profiles import get_profile
 from common.grpc import auth_pb2, auth_pb2_grpc
 
@@ -21,13 +22,26 @@ class AuthServicer(auth_pb2_grpc.AuthServiceServicer):
         if token.startswith("Bearer "):
             token = token[len("Bearer ") :]
 
-        payload = verify_supabase_access_token(token)
-        if not payload:
-            logger.warning("JWT verification failed")
-            return auth_pb2.VerifyTokenResponse(is_valid=False)
+        try:
+            payload = decode_supabase_jwt(token)
+            user_id = payload.get("sub")
+            if not user_id:
+                return auth_pb2.VerifyTokenResponse(is_valid=False)
+
+            # Get user's role from DB profile
+            try:
+                profile = get_profile(user_id)
+                role = profile.get("role", "operator")
+            except Exception:
+                role = "operator"
 
         user_id = payload.get("sub")
         if not user_id:
+            return auth_pb2.VerifyTokenResponse(is_valid=False)
+        except OSError as exc:
+            # JWKS fetch failed: the token may well be valid, so do not cache a
+            # verdict, just refuse this request.
+            logger.error(f"Could not fetch JWKS for token verification: {exc}")
             return auth_pb2.VerifyTokenResponse(is_valid=False)
 
         # Get user's role from DB profile

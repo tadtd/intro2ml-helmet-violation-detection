@@ -7,7 +7,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 
 from common.celery import celery_app
 from common.config import get_settings
-from common.db.client import get_supabase_client
+from common.db.storage import get_video_url
 from common.db.videos import update_video_status
 from common.db.violations import insert_violation
 from common.db.storage import upload_crop
@@ -62,9 +62,8 @@ def process_video(
             logger.warning(f"Failed to publish processing status: {e}")
 
     try:
-        supabase = get_supabase_client()
-        video_url = supabase.storage.from_(settings.supabase_video_bucket).get_public_url(storage_path)
-        logger.info(f"Video streaming URL: {video_url}")
+        video_url = get_video_url(storage_path)
+        logger.info(f"Video streaming URL obtained for {storage_path}")
 
         cap = cv2.VideoCapture(video_url)
         if not cap.isOpened():

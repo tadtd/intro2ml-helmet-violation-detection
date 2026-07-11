@@ -1,3 +1,5 @@
+import { createClient } from '../utils/supabase/client';
+
 interface RequestOptions extends RequestInit {
   token?: string | null;
 }
@@ -50,8 +52,23 @@ export async function apiClient(path: string, options: RequestOptions = {}): Pro
     );
   }
 
+  // There is no backend refresh endpoint: Supabase issues and rotates the tokens,
+  // so ask it for a current session (it renews an expired one) and retry once.
   if (response.status === 401 && typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('auth-session-expired'));
+    try {
+      const { data } = await createClient().auth.getSession();
+      const newAccessToken = data.session?.access_token;
+
+      if (newAccessToken && newAccessToken !== options.token) {
+        headers.set('Authorization', `Bearer ${newAccessToken}`);
+        response = await fetch(url, { ...options, headers });
+        window.dispatchEvent(new CustomEvent('auth-token-refresh', { detail: newAccessToken }));
+      } else if (!newAccessToken) {
+        window.dispatchEvent(new CustomEvent('auth-session-expired'));
+      }
+    } catch {
+      window.dispatchEvent(new CustomEvent('auth-session-expired'));
+    }
   }
 
   if (!response.ok) {

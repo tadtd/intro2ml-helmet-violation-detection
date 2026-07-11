@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
 import { AbstractIntlMessages } from 'next-intl';
 import { useWebSocketStatus } from '../hooks/useWebSocketStatus';
+import { createClient } from '../utils/supabase/client';
 
 interface AuthContextType {
   accessToken: string | null;
@@ -48,6 +49,27 @@ export default function Providers({
   );
   
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isSessionRestored, setIsSessionRestored] = useState(false);
+
+  // The token lives in memory only, so a page reload would otherwise drop it and
+  // every API call would go out unauthenticated. Supabase persists the session
+  // itself, so rehydrate from it on mount and follow later auth changes.
+  React.useEffect(() => {
+    const supabase = createClient();
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setAccessToken(data.session?.access_token ?? null))
+      .finally(() => setIsSessionRestored(true));
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAccessToken(session?.access_token ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   React.useEffect(() => {
     const handleRefresh = (e: Event) => {
@@ -75,7 +97,10 @@ export default function Providers({
       <AuthContext.Provider value={{ accessToken, setAccessToken }}>
         <NextIntlClientProvider locale={locale} messages={messages} timeZone="Asia/Ho_Chi_Minh">
           <BackendRealtimeBridge />
-          {children}
+          {/* Pages fire authenticated queries on mount, so hold them back until the
+              Supabase session has been restored. Rendering earlier would send the
+              first request with no token and the 401 would log the user out. */}
+          {isSessionRestored ? children : null}
         </NextIntlClientProvider>
       </AuthContext.Provider>
     </QueryClientProvider>

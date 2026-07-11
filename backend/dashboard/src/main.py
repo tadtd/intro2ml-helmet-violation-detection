@@ -17,8 +17,9 @@ app = FastAPI(title="Dashboard Query Microservice")
 # For local Docker, the auth service address is auth:50051
 app.add_middleware(GrpcAuthMiddleware, auth_service_addr="auth:50051")
 
-# Keep CORS outermost so auth errors returned by GrpcAuthMiddleware still include
-# Access-Control-Allow-* headers for the browser.
+# Registered after the auth middleware so it ends up outermost: a 401/503
+# short-circuited by the auth layer must still carry CORS headers, otherwise
+# the browser surfaces it as an opaque "Failed to fetch" instead of the status.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

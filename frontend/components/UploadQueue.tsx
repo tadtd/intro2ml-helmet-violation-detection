@@ -3,13 +3,12 @@
 import React from 'react';
 import { useUploadStore } from '../store/useUploadStore';
 import { useTranslations } from 'next-intl';
-import { Play, Pause, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function UploadQueue() {
   const t = useTranslations('upload');
   const items = useUploadStore((state) => state.items);
-  const pauseUpload = useUploadStore((state) => state.pauseUpload);
-  const resumeUpload = useUploadStore((state) => state.resumeUpload);
+  const cancelUpload = useUploadStore((state) => state.cancelUpload);
   const clearCompleted = useUploadStore((state) => state.clearCompleted);
 
   if (items.length === 0) return null;
@@ -49,20 +48,11 @@ export default function UploadQueue() {
               <div className="flex items-center gap-2">
                 {item.status === 'uploading' && (
                   <button
-                    onClick={() => pauseUpload(item.id)}
-                    className="p-1.5 hover:bg-slate-800 rounded-full text-amber-400 transition cursor-pointer"
-                    title={t('pause')}
+                    onClick={() => cancelUpload(item.id)}
+                    className="p-1.5 hover:bg-slate-800 rounded-full text-rose-400 transition cursor-pointer"
+                    title={t('cancel')}
                   >
-                    <Pause className="w-4 h-4" />
-                  </button>
-                )}
-                {item.status === 'paused' && (
-                  <button
-                    onClick={() => resumeUpload(item.id)}
-                    className="p-1.5 hover:bg-slate-800 rounded-full text-emerald-400 transition cursor-pointer"
-                    title={t('resume')}
-                  >
-                    <Play className="w-4 h-4" />
+                    <X className="w-4 h-4" />
                   </button>
                 )}
                 {item.status === 'completed' && (
@@ -79,7 +69,7 @@ export default function UploadQueue() {
             {item.status !== 'completed' && item.status !== 'failed' && (
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-semibold text-slate-400">
-                  <span>{item.status === 'paused' ? 'Paused' : 'Uploading...'}</span>
+                  <span>Uploading...</span>
                   <span>{Math.round(item.progress)}%</span>
                 </div>
                 <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">

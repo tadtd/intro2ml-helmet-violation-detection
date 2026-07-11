@@ -67,6 +67,8 @@
     "locationBreakdown": "Location Violations Share",
     "exportCSV": "Export CSV",
     "exportPDF": "Export PDF Report",
-    "healthStatus": "Microservice Health Status"
+    "healthStatus": "Microservice Health Status",
+    "reviewBreakdown": "Review status",
+    "videosWithViolations": "Videos with violations"
   }
 }

@@ -27,16 +27,20 @@ import Link from 'next/link';
 
 type Violation = {
   id: string;
+  video_id: string | null;
   image_url: string | null;
   timestamp: string;
   track_id: number | null;
   model_used: string | null;
+  confidence: number | null;
+  reviewed?: boolean;
   is_flagged?: boolean;
 };
 
 export default function DashboardPage() {
   const t = useTranslations('dashboard');
   const tr = useTranslations('results');
+  const ts = useTranslations('states');
   const { accessToken } = useAuthContext();
   const dateRange = useFilterStore((state) => state.dateRange);
   const selectedModel = useFilterStore((state) => state.selectedModel);
@@ -122,28 +126,49 @@ export default function DashboardPage() {
     }
   };
 
-  // Mock analytics charts data
-  const hourlyData = [
-    { name: '08:00', count: 14 },
-    { name: '10:00', count: 25 },
-    { name: '12:00', count: 8 },
-    { name: '14:00', count: 19 },
-    { name: '16:00', count: 32 },
-    { name: '18:00', count: 45 },
-    { name: '20:00', count: 12 },
-  ];
+  // Analytics derived from the violations actually returned by the API.
+  const hourlyData = React.useMemo(() => {
+    const perHour = new Map<number, number>();
+    violations.forEach((v) => {
+      const hour = new Date(v.timestamp).getHours();
+      perHour.set(hour, (perHour.get(hour) ?? 0) + 1);
+    });
+    return [...perHour.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([hour, count]) => ({ name: `${String(hour).padStart(2, '0')}:00`, count }));
+  }, [violations]);
 
-  const modelData = [
-    { name: 'YOLO', violations: 48, accuracy: 89 },
-    { name: 'RT-DETR', violations: 32, accuracy: 94 },
-    { name: 'Faster R-CNN', violations: 15, accuracy: 91 },
-  ];
+  // `confidence` stands in for accuracy: it is the only per-detection score stored.
+  const modelData = React.useMemo(() => {
+    const perModel = new Map<string, { count: number; confidenceSum: number }>();
+    violations.forEach((v) => {
+      const name = v.model_used ?? 'unknown';
+      const entry = perModel.get(name) ?? { count: 0, confidenceSum: 0 };
+      entry.count += 1;
+      entry.confidenceSum += Number(v.confidence ?? 0);
+      perModel.set(name, entry);
+    });
+    return [...perModel.entries()].map(([name, { count, confidenceSum }]) => ({
+      name,
+      violations: count,
+      accuracy: Math.round((confidenceSum / count) * 100),
+    }));
+  }, [violations]);
 
-  const locationData = [
-    { name: 'Ngã tư A', value: 45 },
-    { name: 'Ngã tư B', value: 30 },
-    { name: 'Vòng xoay C', value: 25 },
-  ];
+  // The schema has no location column, so break down by review state instead.
+  const reviewData = React.useMemo(() => {
+    const reviewed = violations.filter((v) => v.reviewed).length;
+    return [
+      { name: tr('approve'), value: reviewed },
+      { name: ts('pending'), value: violations.length - reviewed },
+    ].filter((slice) => slice.value > 0);
+  }, [violations, tr, ts]);
+
+  const averageConfidence = violations.length
+    ? violations.reduce((sum, v) => sum + Number(v.confidence ?? 0), 0) / violations.length
+    : 0;
+
+  const videosWithViolations = new Set(violations.map((v) => v.video_id).filter(Boolean)).size;
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b'];
 
@@ -206,8 +231,8 @@ export default function DashboardPage() {
             <Activity className="w-8 h-8" />
           </div>
           <div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('activeFeeds')}</p>
-            <h3 className="text-3xl font-extrabold text-white mt-1">4 camera</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('videosWithViolations')}</p>
+            <h3 className="text-3xl font-extrabold text-white mt-1">{videosWithViolations}</h3>
           </div>
         </div>
 
@@ -217,7 +242,9 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('accuracyRate')}</p>
-            <h3 className="text-3xl font-extrabold text-white mt-1">92.3%</h3>
+            <h3 className="text-3xl font-extrabold text-white mt-1">
+              {violations.length ? `${(averageConfidence * 100).toFixed(1)}%` : '—'}
+            </h3>
           </div>
         </div>
       </div>
@@ -243,13 +270,13 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Location pie chart */}
+        {/* Review status pie chart */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg space-y-4">
-          <h4 className="text-sm font-semibold text-slate-200">{t('locationBreakdown')}</h4>
+          <h4 className="text-sm font-semibold text-slate-200">{t('reviewBreakdown')}</h4>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
-                data={locationData}
+                data={reviewData}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
@@ -257,7 +284,7 @@ export default function DashboardPage() {
                 paddingAngle={5}
                 dataKey="value"
               >
-                {locationData.map((entry, index) => (
+                {reviewData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -278,7 +305,7 @@ export default function DashboardPage() {
             <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff' }} />
             <Legend />
             <Bar dataKey="violations" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Số vi phạm ghi nhận" />
-            <Bar dataKey="accuracy" fill="#10b981" radius={[4, 4, 0, 0]} name="Độ chính xác (%)" />
+            <Bar dataKey="accuracy" fill="#10b981" radius={[4, 4, 0, 0]} name="Độ tin cậy trung bình (%)" />
           </BarChart>
         </ResponsiveContainer>
       </div>

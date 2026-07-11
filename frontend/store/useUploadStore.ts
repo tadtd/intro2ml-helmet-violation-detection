@@ -1,33 +1,32 @@
 import { create } from 'zustand';
-import { Upload } from 'tus-js-client';
 
 export interface UploadQueueItem {
   id: string;
   fileName: string;
   fileSize: number;
   progress: number; // 0 - 100
-  status: 'uploading' | 'paused' | 'completed' | 'failed';
+  status: 'uploading' | 'completed' | 'failed';
   error?: string;
-  tusInstance?: Upload;
+  // An upload is a single multipart request: it can be aborted, but not resumed.
+  request?: XMLHttpRequest;
 }
 
 interface UploadQueueState {
   items: UploadQueueItem[];
-  addUpload: (id: string, name: string, size: number, tus: Upload) => void;
+  addUpload: (id: string, name: string, size: number, request: XMLHttpRequest) => void;
   updateProgress: (id: string, progress: number) => void;
   setStatus: (id: string, status: UploadQueueItem['status'], error?: string) => void;
-  pauseUpload: (id: string) => void;
-  resumeUpload: (id: string) => void;
+  cancelUpload: (id: string) => void;
   clearCompleted: () => void;
 }
 
 export const useUploadStore = create<UploadQueueState>((set, get) => ({
   items: [],
-  addUpload: (id, name, size, tus) =>
+  addUpload: (id, name, size, request) =>
     set((state) => ({
       items: [
         ...state.items.filter((item) => item.id !== id),
-        { id, fileName: name, fileSize: size, progress: 0, status: 'uploading', tusInstance: tus },
+        { id, fileName: name, fileSize: size, progress: 0, status: 'uploading', request },
       ],
     })),
   updateProgress: (id, progress) =>
@@ -42,25 +41,12 @@ export const useUploadStore = create<UploadQueueState>((set, get) => ({
         item.id === id ? { ...item, status, error } : item
       ),
     })),
-  pauseUpload: (id) => {
+  cancelUpload: (id) => {
     const item = get().items.find((i) => i.id === id);
-    if (item && item.tusInstance && item.status === 'uploading') {
-      item.tusInstance.abort();
+    if (item && item.status === 'uploading') {
+      item.request?.abort();
       set((state) => ({
-        items: state.items.map((i) =>
-          i.id === id ? { ...i, status: 'paused' as const } : i
-        ),
-      }));
-    }
-  },
-  resumeUpload: (id) => {
-    const item = get().items.find((i) => i.id === id);
-    if (item && item.tusInstance && item.status === 'paused') {
-      item.tusInstance.start();
-      set((state) => ({
-        items: state.items.map((i) =>
-          i.id === id ? { ...i, status: 'uploading' as const } : i
-        ),
+        items: state.items.filter((i) => i.id !== id),
       }));
     }
   },
