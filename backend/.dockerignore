@@ -1,0 +1,16 @@
+.env
+.env.local
+.env.production
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+*.log*
+app/weights/*.onnx

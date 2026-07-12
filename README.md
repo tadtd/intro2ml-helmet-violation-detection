@@ -141,3 +141,53 @@ On PowerShell:
 $env:PYTHONPATH="backend"
 uv run pytest backend/ingestion/ backend/inference/ backend/notification/ backend/dashboard/ backend/orchestration/
 ```
+The frontend runs at `http://localhost:3000`; the API gateway runs at `http://localhost:8000`.
+
+## 🧪 Local Smoke Test
+
+After `docker compose up --build`, verify the local runtime before Kubernetes or
+CI/CD work. Full PowerShell smoke-test steps are in
+[docs/devops-smoke-test.md](docs/devops-smoke-test.md).
+
+```powershell
+docker compose ps
+```
+
+The Compose stack must show Redis, Traefik, auth, ingestion, notification, dashboard, orchestration, inference, and frontend services running. Any
+infrastructure change must update these local run and smoke-test instructions
+when the commands or expected checks change.
+
+## 📦 Deployment Artifact Review
+
+Production handoff artifacts are reviewable outlines, not a production rollout.
+Review them after the local Docker Compose smoke test passes:
+
+- [k8s/README.md](k8s/README.md) for GKE manifest handoff, secret placeholder
+  creation, image placeholder replacement, and failure notes.
+- [k8s/kustomization.yaml](k8s/kustomization.yaml) for the manifest grouping.
+- [.github/workflows/deploy-gke.yml](.github/workflows/deploy-gke.yml) for the
+  GKE deployment pipeline outline using Artifact Registry and workload identity.
+
+The existing `.github/deploy.yml` file is empty/nonstandard and is not the
+target workflow. Terraform, Helm, ArgoCD, and External Secrets are not required
+for this feature.
+
+## 🔒 Security Rules
+
+- Frontend code uses only `NEXT_PUBLIC_SUPABASE_URL` and
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- Backend services read Supabase service role credentials only
+  from environment variables or a secret manager.
+- Kubernetes and CI/CD files must use secret placeholders or secret-manager
+  references with documented creation steps, not hardcoded secret values.
+
+## 🏋️ Model Weights
+
+Place exported ONNX files in `backend/inference/weights/`:
+
+- `yolo_best.onnx`
+- `rtdetr_best.onnx`
+- `fasterrcnn_best.onnx`
+
+The wrapper classes are wired for ONNX Runtime, but final output parsing depends
+on the exported model tensor shape and class mapping.

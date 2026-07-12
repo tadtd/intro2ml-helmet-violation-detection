@@ -98,6 +98,21 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### Constitution Alignment *(mandatory when applicable)*
+
+- **CA-001**: Features that touch secrets, environment variables, Supabase keys,
+  Kubernetes, CI/CD, certificates, or kubeconfigs MUST state how real secrets
+  stay out of the repository.
+- **CA-002**: Infrastructure features MUST state the local run command and local
+  smoke test expected from the implementation.
+- **CA-003**: Features that touch Supabase access MUST state which components use
+  publishable/anon keys and which trusted backend components use service role
+  keys through environment variables or secret manager.
+- **CA-004**: Features that touch schema or migrations MUST state the execution
+  order and whether changes are idempotent and non-destructive.
+- **CA-005**: Generated artifacts MUST target the existing repository layout
+  rather than creating a new monorepo or parallel scaffold.
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]

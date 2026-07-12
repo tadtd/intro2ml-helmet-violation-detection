@@ -40,7 +40,20 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **Secret Hygiene**: Confirm no real secrets, tokens, service role keys,
+  kubeconfigs, certificates, private keys, or real `.env` files are introduced.
+- **Infrastructure Runbook**: For Docker Compose, Kubernetes, CI/CD, Supabase,
+  Redis, API, or worker changes, identify the local run command and smoke test.
+- **Local-First Runtime**: Confirm Docker Compose remains the first validation
+  path for Redis, API, and worker before Kubernetes or cloud deployment.
+- **Supabase Least Privilege**: Confirm frontend code uses only publishable/anon
+  keys and service role keys stay backend-only through env or secret manager.
+- **Schema Safety**: Confirm schema/migration changes have clear ordering, are
+  idempotent where practical, and avoid undocumented destructive data changes.
+- **Deployment Secrets**: Confirm Kubernetes and CI/CD use secret managers or
+  documented secret placeholders, never hardcoded secret values.
+- **Repository Fit**: Confirm artifacts extend the existing repository structure
+  and do not create a parallel monorepo or duplicate project scaffold.
 
 ## Project Structure
 

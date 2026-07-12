@@ -65,6 +65,10 @@ Run this from the repository root:
 npx supabase db push
 ```
 
+The `backend/supabase/schema/` SQL modules from the infrastructure branch are kept as
+reference material for manual SQL-editor setup. Detailed setup, bucket policy, auth,
+realtime, verification, and rollback guidance is maintained in `../docs/supabase-setup.md`.
+
 Database pgTAP tests and benchmark seed SQL live in `../supabase/tests/`.
 The migrations create the `videos` and `violations` storage buckets.
 

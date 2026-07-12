@@ -1,0 +1,119 @@
+name: Deploy GKE Outline
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Set to true only after replacing placeholders and creating secrets outside git."
+        required: true
+        default: "false"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  # Configure these as GitHub repository/environment variables, not hardcoded values.
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+  GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
+  GKE_LOCATION: ${{ vars.GKE_LOCATION }}
+  K8S_NAMESPACE: helmet-violation
+  API_IMAGE_NAME: helmet-api
+  WORKER_IMAGE_NAME: helmet-worker
+  FRONTEND_IMAGE_NAME: helmet-frontend
+  BUILD_FRONTEND: ${{ vars.BUILD_FRONTEND }}
+
+jobs:
+  deploy-outline:
+    name: Build, Publish, And Deploy Outline
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deploy == 'true' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint And Validate Local Artifacts
+        run: |
+          docker compose config
+          python -m py_compile \
+            backend/app/auth.py \
+            backend/app/main.py \
+            backend/app/celery_app.py
+          test -f k8s/kustomization.yaml
+
+      - name: Authenticate To Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          # Required placeholders: configure workload identity provider and
+          # deploy service account outside git.
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set Up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Artifact Registry Docker Auth
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build And Push API Image
+        run: |
+          docker build -f backend/Dockerfile.api \
+            -t "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${API_IMAGE_NAME}:${GITHUB_SHA}" \
+            backend
+          docker push "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${API_IMAGE_NAME}:${GITHUB_SHA}"
+
+      - name: Build And Push Worker Image
+        run: |
+          docker build -f backend/Dockerfile.worker \
+            -t "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${WORKER_IMAGE_NAME}:${GITHUB_SHA}" \
+            backend
+          docker push "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${WORKER_IMAGE_NAME}:${GITHUB_SHA}"
+
+      - name: Build And Push Optional Frontend Image
+        if: ${{ vars.BUILD_FRONTEND == 'true' }}
+        run: |
+          docker build -f frontend/Dockerfile \
+            -t "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${FRONTEND_IMAGE_NAME}:${GITHUB_SHA}" \
+            frontend
+          docker push "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${FRONTEND_IMAGE_NAME}:${GITHUB_SHA}"
+
+      - name: Get GKE Credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_LOCATION }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Ensure Kubernetes Namespace Exists
+        run: kubectl apply -f k8s/namespace.yaml
+
+      - name: Verify Required Kubernetes Secrets Exist
+        run: |
+          kubectl -n "${K8S_NAMESPACE}" get secret helmet-api-secrets
+          if [ "${BUILD_FRONTEND:-false}" = "true" ]; then
+            kubectl -n "${K8S_NAMESPACE}" get secret helmet-frontend-public-config
+          fi
+
+      - name: Apply Required Kubernetes Manifests
+        run: |
+          kubectl apply -f k8s/redis.yaml
+          kubectl apply -f k8s/api.yaml
+          kubectl apply -f k8s/worker.yaml
+          kubectl -n "${K8S_NAMESPACE}" set image deployment/helmet-api \
+            api="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${API_IMAGE_NAME}:${GITHUB_SHA}"
+          kubectl -n "${K8S_NAMESPACE}" set image deployment/helmet-worker \
+            worker="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${WORKER_IMAGE_NAME}:${GITHUB_SHA}"
+          if [ "${BUILD_FRONTEND:-false}" = "true" ]; then
+            kubectl apply -f k8s/frontend.yaml
+            kubectl -n "${K8S_NAMESPACE}" set image deployment/helmet-frontend \
+              frontend="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${FRONTEND_IMAGE_NAME}:${GITHUB_SHA}"
+          fi
+
+      - name: Post Deploy Health Validation
+        run: |
+          kubectl -n "${K8S_NAMESPACE}" rollout status deployment/helmet-api --timeout=180s
+          kubectl -n "${K8S_NAMESPACE}" rollout status deployment/helmet-worker --timeout=180s
+          kubectl -n "${K8S_NAMESPACE}" get service helmet-api

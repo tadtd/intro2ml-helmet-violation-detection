@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: helmet-violation
+  labels:
+    app.kubernetes.io/name: helmet-violation-detection
+    app.kubernetes.io/part-of: helmet-violation-detection
