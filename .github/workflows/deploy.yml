@@ -178,6 +178,11 @@ jobs:
           set -euo pipefail
           kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml"
           kubectl apply -f "https://raw.githubusercontent.com/traefik/traefik/${TRAEFIK_CRD_VERSION}/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml"
+          kubectl apply -f deploy/k8s/addons/cert-manager-autopilot-rbac.yaml
+          kubectl -n cert-manager patch deployment cert-manager --type=json \
+            -p='[{"op":"replace","path":"/spec/template/spec/containers/0/args/2","value":"--leader-election-namespace=cert-manager"}]'
+          kubectl -n cert-manager patch deployment cert-manager-cainjector --type=json \
+            -p='[{"op":"replace","path":"/spec/template/spec/containers/0/args/1","value":"--leader-election-namespace=cert-manager"}]'
 
           kubectl -n cert-manager rollout status deployment/cert-manager --timeout=180s
           kubectl -n cert-manager rollout status deployment/cert-manager-cainjector --timeout=180s
