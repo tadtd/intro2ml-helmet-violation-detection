@@ -7,6 +7,8 @@ requires-python = ">=3.13"
 dependencies = [
     "celery>=5.6.0",
     "fastapi>=0.137.1",
+    "grpcio>=1.62.0",
+    "grpcio-tools>=1.62.0",
     "numpy>=2.4.6",
     "onnxruntime>=1.23.2",
     "opencv-python-headless>=4.12.0.88",
@@ -20,4 +22,4 @@ dependencies = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = [".", "common"]
