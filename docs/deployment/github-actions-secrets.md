@@ -8,7 +8,7 @@ Use repository or environment variables for non-secret deployment identifiers.
 - `GKE_REGION=asia-southeast1`
 - `GKE_CLUSTER=helmet-cluster`
 - `ARTIFACT_REGISTRY_REPOSITORY=helmet-repo`
-- `DUCKDNS_DOMAIN=dtdathcmus.duckdns.org`
+- `DUCKDNS_DOMAIN=dtdat-nthv.duckdns.org`
 
 ## Required Secrets
 

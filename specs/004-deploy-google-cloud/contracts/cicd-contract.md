@@ -67,7 +67,7 @@ The workflow needs these GitHub Actions variables:
 - `GKE_REGION=asia-southeast1`
 - `GKE_CLUSTER=helmet-cluster`
 - `ARTIFACT_REGISTRY_REPOSITORY=helmet-repo`
-- `DUCKDNS_DOMAIN=dtdathcmus.duckdns.org`
+- `DUCKDNS_DOMAIN=dtdat-nthv.duckdns.org`
 
 Runtime application secrets remain in GCP Secret Manager, not GitHub secrets, unless needed only by CI validation.
 

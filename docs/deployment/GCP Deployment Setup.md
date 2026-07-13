@@ -120,11 +120,16 @@ echo -n "real-value" | gcloud secrets create jwt-secret --data-file=-
 
 ## Part 2 — GitHub Setup
 
-### 2.1 Add GitHub Secrets
-Repo → Settings → Secrets and variables → Actions → New repository secret:
-- `GCP_PROJECT_ID` = `helmet-detection-2026`
+### 2.1 Add GitHub Actions Settings
+Repo → Settings → Secrets and variables → Actions → Secrets → New repository secret:
 - `GCP_SA_KEY` = the entire contents of `github-key.json`
-- `GCP_REGION` = `asia-southeast1`
+
+Repo → Settings → Secrets and variables → Actions → Variables → New repository variable:
+- `GCP_PROJECT_ID` = `helmet-detection-2026`
+- `GKE_REGION` = `asia-southeast1`
+- `GKE_CLUSTER` = `helmet-cluster`
+- `ARTIFACT_REGISTRY_REPOSITORY` = `helmet-repo`
+- `DUCKDNS_DOMAIN` = `dtdat-nthv.duckdns.org`
 
 **Why:** GitHub Actions has no default access to your local machine or GCP — it needs these values to know where to deploy and what permissions to authenticate with.
 
@@ -144,7 +149,7 @@ The `.github/workflows/deploy.yml` file (to be written in detail later) will:
 ### 3.1 Required order of operations
 1. Deploy Traefik to the cluster first
 2. `kubectl get svc traefik` → get the real External IP (assigned by GCP, different from your personal machine's IP)
-3. Go to DuckDNS, point your subdomain (`dtdathcmus.duckdns.org`) to that exact IP (the "update ip" button)
+3. Go to DuckDNS, point your subdomain (`dtdat-nthv.duckdns.org`) to that exact IP (the "update ip" button)
 4. Fill in the real domain in `Certificate.yaml` (replacing the placeholder), then `kubectl apply`
 
 **Why this order is mandatory:** cert-manager requests a certificate from Let's Encrypt by having Let's Encrypt send a verification request directly to the domain (HTTP-01 challenge). If the domain isn't yet pointing to the cluster's IP, that verification request fails and the certificate won't be issued — so the domain must point correctly **first**, and the two steps can't be done in parallel or reversed.

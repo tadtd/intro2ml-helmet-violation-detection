@@ -8,7 +8,7 @@ Required replacements before deployment:
 - `STAGING_PROJECT_ID`
 - `REPOSITORY`
 - `COMMIT_SHA`
-- `yourname.duckdns.org`
+- `dtdat-nthv.duckdns.org`
 - `maintainer@example.com`
 
 Render:
