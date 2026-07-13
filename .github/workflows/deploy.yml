@@ -185,6 +185,23 @@ jobs:
           kubectl wait --for=condition=Established --timeout=120s crd/certificates.cert-manager.io
           kubectl wait --for=condition=Established --timeout=120s crd/clusterissuers.cert-manager.io
           kubectl wait --for=condition=Established --timeout=120s crd/ingressroutes.traefik.io
+          cert_manager_webhook_error="$(mktemp)"
+          trap 'rm -f "$cert_manager_webhook_error"' EXIT
+          for attempt in {1..36}; do
+            ca_bundle="$(kubectl get validatingwebhookconfiguration cert-manager-webhook \
+              -o jsonpath='{.webhooks[0].clientConfig.caBundle}' 2>/dev/null || true)"
+            if [ -n "$ca_bundle" ] && kubectl apply --dry-run=server -f deploy/k8s/base/cert-manager/issuer.yaml >/dev/null 2>"$cert_manager_webhook_error"; then
+              echo "cert-manager webhook trust is ready"
+              break
+            fi
+            if [ "$attempt" -eq 36 ]; then
+              echo "::error::cert-manager webhook trust did not become ready"
+              cat "$cert_manager_webhook_error"
+              exit 1
+            fi
+            echo "Waiting for cert-manager webhook trust to become ready..."
+            sleep 10
+          done
 
       - name: Apply Kustomize overlay
         if: ${{ env.DEPLOY_OPERATION != 'smoke-test' }}
