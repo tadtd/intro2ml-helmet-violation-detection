@@ -11,6 +11,10 @@ patches:
   - path: patches/public-endpoint.yaml
   - path: patches/secrets.yaml
   - path: patches/replicas.yaml
+  - target:
+      kind: ClusterRoleBinding
+      name: traefik
+    path: patches/traefik-rbac-subject.yaml
 
 labels:
   - pairs:

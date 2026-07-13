@@ -41,6 +41,8 @@ env:
   DUCKDNS_DOMAIN: ${{ vars.DUCKDNS_DOMAIN }}
   DEPLOY_ENVIRONMENT: ${{ inputs.environment || 'staging' }}
   DEPLOY_OPERATION: ${{ inputs.operation || 'deploy' }}
+  CERT_MANAGER_VERSION: v1.21.0
+  TRAEFIK_CRD_VERSION: v3.7
 
 jobs:
   frontend-checks:
@@ -169,6 +171,29 @@ jobs:
           tar -xzf /tmp/kustomize.tar.gz -C /tmp
           sudo mv /tmp/kustomize /usr/local/bin/kustomize
 
+      - name: Install cluster add-ons
+        if: ${{ env.DEPLOY_OPERATION != 'smoke-test' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml"
+          kubectl apply -f "https://raw.githubusercontent.com/traefik/traefik/${TRAEFIK_CRD_VERSION}/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml"
+
+          helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
+          helm repo update
+          helm upgrade --install csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver \
+            --namespace kube-system \
+            --set syncSecret.enabled=true
+          kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/secrets-store-csi-driver-provider-gcp/main/deploy/provider-gcp-plugin.yaml
+
+          kubectl -n cert-manager rollout status deployment/cert-manager --timeout=180s
+          kubectl -n cert-manager rollout status deployment/cert-manager-cainjector --timeout=180s
+          kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=180s
+          kubectl wait --for=condition=Established --timeout=120s crd/certificates.cert-manager.io
+          kubectl wait --for=condition=Established --timeout=120s crd/clusterissuers.cert-manager.io
+          kubectl wait --for=condition=Established --timeout=120s crd/secretproviderclasses.secrets-store.csi.x-k8s.io
+          kubectl wait --for=condition=Established --timeout=120s crd/ingressroutes.traefik.io
+
       - name: Apply Kustomize overlay
         if: ${{ env.DEPLOY_OPERATION != 'smoke-test' }}
         shell: bash
@@ -180,6 +205,7 @@ jobs:
             (cd "$OVERLAY" && kustomize edit set image \
               "asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/${service}=${REGISTRY}/${service}:${{ steps.version.outputs.sha }}")
           done
+          kubectl apply -f deploy/k8s/base/cert-manager/issuer.yaml
           kubectl apply -k "$OVERLAY"
 
       - name: Wait for rollouts

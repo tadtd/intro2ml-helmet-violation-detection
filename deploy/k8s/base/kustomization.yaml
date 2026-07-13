@@ -33,8 +33,8 @@ resources:
   - traefik/traefik-deployment.yaml
   - traefik/traefik-service.yaml
   - traefik/traefik-config.yaml
+  - traefik/traefik-rbac.yaml
   - traefik/ingress-routes.yaml
-  - cert-manager/issuer.yaml
   - cert-manager/certificate.yaml
 
 patches:

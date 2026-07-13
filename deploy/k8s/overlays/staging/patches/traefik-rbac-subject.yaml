@@ -1,0 +1,6 @@
+- op: replace
+  path: /metadata/name
+  value: traefik-staging
+- op: replace
+  path: /subjects/0/namespace
+  value: helmet-staging
