@@ -201,23 +201,50 @@ jobs:
           kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
           secret_env_file="$(mktemp)"
-          trap 'rm -f "$secret_env_file"' EXIT
-          {
-            printf 'SUPABASE_URL=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-url)"
-            printf 'SUPABASE_ANON_KEY=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-anon-key)"
-            printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-service-role-key)"
-            printf 'SUPABASE_JWT_SECRET=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-jwt-secret)"
-            printf 'SUPABASE_VIDEO_BUCKET=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-video-bucket)"
-            printf 'SUPABASE_STORAGE_BUCKET=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-storage-bucket)"
-            printf 'DUCKDNS_TOKEN=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-duckdns-token)"
-            printf 'HELMET_JWT_SECRET=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-jwt-secret)"
-          } > "$secret_env_file"
+          secret_error_file="$(mktemp)"
+          trap 'rm -f "$secret_env_file" "$secret_error_file"' EXIT
+
+          fetch_secret() {
+            local env_name="$1"
+            local secret_name="$2"
+            local value
+            if ! value="$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret "$secret_name" 2>"$secret_error_file")"; then
+              echo "::error::Missing or inaccessible GCP Secret Manager secret/version: ${secret_name}"
+              cat "$secret_error_file"
+              exit 1
+            fi
+            if [ -z "$value" ]; then
+              echo "::error::GCP Secret Manager secret has an empty latest version: ${secret_name}"
+              exit 1
+            fi
+            printf '%s=%s\n' "$env_name" "$value" >> "$secret_env_file"
+          }
+
+          fetch_secret SUPABASE_URL helmet-supabase-url
+          fetch_secret SUPABASE_ANON_KEY helmet-supabase-anon-key
+          fetch_secret SUPABASE_SERVICE_ROLE_KEY helmet-supabase-service-role-key
+          fetch_secret SUPABASE_JWT_SECRET helmet-supabase-jwt-secret
+          fetch_secret SUPABASE_VIDEO_BUCKET helmet-supabase-video-bucket
+          fetch_secret SUPABASE_STORAGE_BUCKET helmet-supabase-storage-bucket
+          fetch_secret DUCKDNS_TOKEN helmet-duckdns-token
+          fetch_secret HELMET_JWT_SECRET helmet-jwt-secret
+
           kubectl -n "$NAMESPACE" create secret generic helmet-runtime-secrets \
             --from-env-file="$secret_env_file" \
             --dry-run=client \
             -o yaml | kubectl apply -f -
 
-          kubectl apply -f deploy/k8s/base/cert-manager/issuer.yaml
+          for attempt in {1..12}; do
+            if kubectl apply -f deploy/k8s/base/cert-manager/issuer.yaml; then
+              break
+            fi
+            if [ "$attempt" -eq 12 ]; then
+              echo "::error::cert-manager webhook did not become ready for ClusterIssuer apply"
+              exit 1
+            fi
+            echo "cert-manager webhook is not ready yet; retrying ClusterIssuer apply in 10 seconds..."
+            sleep 10
+          done
           kubectl apply -k "$OVERLAY"
 
       - name: Wait for rollouts
