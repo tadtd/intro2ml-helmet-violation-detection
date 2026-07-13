@@ -20,6 +20,8 @@ spec:
           port: 8002
     - match: Host(`dtdat-nthv.duckdns.org`) && PathPrefix(`/api/v1/violations`)
       kind: Rule
+      middlewares:
+        - name: dashboard-strip-api-prefix
       services:
         - name: dashboard
           port: 8004
