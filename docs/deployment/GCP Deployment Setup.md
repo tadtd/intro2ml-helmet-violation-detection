@@ -130,6 +130,7 @@ Repo → Settings → Secrets and variables → Actions → Variables → New re
 - `GKE_CLUSTER` = `helmet-cluster`
 - `ARTIFACT_REGISTRY_REPOSITORY` = `helmet-repo`
 - `DUCKDNS_DOMAIN` = `dtdat-nthv.duckdns.org`
+- `LETSENCRYPT_EMAIL` = your email address for Let's Encrypt expiry notices
 
 **Why:** GitHub Actions has no default access to your local machine or GCP — it needs these values to know where to deploy and what permissions to authenticate with.
 

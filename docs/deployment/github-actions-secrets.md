@@ -9,6 +9,7 @@ Use repository or environment variables for non-secret deployment identifiers.
 - `GKE_CLUSTER=helmet-cluster`
 - `ARTIFACT_REGISTRY_REPOSITORY=helmet-repo`
 - `DUCKDNS_DOMAIN=dtdat-nthv.duckdns.org`
+- `LETSENCRYPT_EMAIL=<your-email-address>`
 
 ## Required Secrets
 

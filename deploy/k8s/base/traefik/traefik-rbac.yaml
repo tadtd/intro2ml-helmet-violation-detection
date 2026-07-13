@@ -9,6 +9,8 @@ rules:
       - services
       - endpoints
       - secrets
+      - configmaps
+      - nodes
     verbs:
       - get
       - list

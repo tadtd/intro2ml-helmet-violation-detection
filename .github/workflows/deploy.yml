@@ -39,6 +39,7 @@ env:
   GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
   ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
   DUCKDNS_DOMAIN: ${{ vars.DUCKDNS_DOMAIN }}
+  LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
   DEPLOY_ENVIRONMENT: ${{ inputs.environment || 'staging' }}
   DEPLOY_OPERATION: ${{ inputs.operation || 'deploy' }}
   CERT_MANAGER_VERSION: v1.21.0
@@ -224,7 +225,13 @@ jobs:
 
           secret_env_file="$(mktemp)"
           secret_error_file="$(mktemp)"
-          trap 'rm -f "$secret_env_file" "$secret_error_file"' EXIT
+          issuer_manifest="$(mktemp)"
+          trap 'rm -f "$secret_env_file" "$secret_error_file" "$issuer_manifest"' EXIT
+
+          if [ -z "${LETSENCRYPT_EMAIL:-}" ]; then
+            echo "::error::Missing GitHub Actions variable LETSENCRYPT_EMAIL"
+            exit 1
+          fi
 
           fetch_secret() {
             local env_name="$1"
@@ -255,8 +262,10 @@ jobs:
             --dry-run=client \
             -o yaml | kubectl apply -f -
 
+          sed "s/maintainer@example.com/${LETSENCRYPT_EMAIL}/g" \
+            deploy/k8s/base/cert-manager/issuer.yaml > "$issuer_manifest"
           for attempt in {1..12}; do
-            if kubectl apply -f deploy/k8s/base/cert-manager/issuer.yaml; then
+            if kubectl apply -f "$issuer_manifest"; then
               break
             fi
             if [ "$attempt" -eq 12 ]; then
@@ -268,6 +277,56 @@ jobs:
           done
           kubectl apply -k "$OVERLAY"
 
+      - name: Sync DuckDNS record
+        if: ${{ env.DEPLOY_OPERATION != 'smoke-test' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAMESPACE="helmet-${DEPLOY_ENVIRONMENT}"
+          duckdns_subdomain="${DUCKDNS_DOMAIN%.duckdns.org}"
+          if [ "$duckdns_subdomain" = "$DUCKDNS_DOMAIN" ]; then
+            echo "::error::DUCKDNS_DOMAIN must end with .duckdns.org"
+            exit 1
+          fi
+
+          lb_ip=""
+          for attempt in {1..60}; do
+            lb_ip="$(kubectl -n "$NAMESPACE" get service traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
+            if [ -n "$lb_ip" ]; then
+              break
+            fi
+            echo "Waiting for Traefik LoadBalancer IP..."
+            sleep 10
+          done
+          if [ -z "$lb_ip" ]; then
+            echo "::error::Traefik LoadBalancer IP was not assigned"
+            exit 1
+          fi
+
+          duckdns_secret_value="$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-duckdns-token)"
+          duckdns_response="$(curl --get --fail --silent --show-error https://www.duckdns.org/update \
+            --data-urlencode "domains=${duckdns_subdomain}" \
+            --data-urlencode "token=${duckdns_secret_value}" \
+            --data-urlencode "ip=${lb_ip}")"
+          if [ "$duckdns_response" != "OK" ]; then
+            echo "::error::DuckDNS update failed"
+            exit 1
+          fi
+
+          for attempt in {1..30}; do
+            resolved_ip="$(getent ahostsv4 "$DUCKDNS_DOMAIN" | awk '{ print $1; exit }' || true)"
+            if [ "$resolved_ip" = "$lb_ip" ]; then
+              echo "DuckDNS ${DUCKDNS_DOMAIN} resolves to ${lb_ip}"
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "::error::DuckDNS ${DUCKDNS_DOMAIN} did not resolve to ${lb_ip}; last value: ${resolved_ip:-none}"
+              exit 1
+            fi
+            echo "Waiting for DuckDNS ${DUCKDNS_DOMAIN} to resolve to ${lb_ip}; current: ${resolved_ip:-none}"
+            sleep 10
+          done
+
       - name: Wait for rollouts
         shell: bash
         run: |
@@ -277,6 +336,7 @@ jobs:
             kubectl -n "$NAMESPACE" rollout status "deployment/${deployment}" --timeout=180s
           done
           kubectl -n "$NAMESPACE" rollout status statefulset/redis --timeout=180s
+          kubectl -n "$NAMESPACE" wait --for=condition=Ready certificate/helmet-duckdns --timeout=600s
 
       - name: Run smoke checks
         shell: bash
