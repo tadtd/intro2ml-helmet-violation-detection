@@ -32,11 +32,10 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-  GCP_REGION: ${{ vars.GKE_REGION || 'asia-southeast1' }}
+  GCP_REGION: ${{ vars.GKE_REGION }}
   GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
   ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
   DUCKDNS_DOMAIN: ${{ vars.DUCKDNS_DOMAIN }}
@@ -117,8 +116,7 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
@@ -195,11 +193,11 @@ jobs:
           kubectl -n "$NAMESPACE" rollout status statefulset/redis --timeout=180s
 
       - name: Run smoke checks
-        shell: pwsh
+        shell: bash
         run: |
-          ./deploy/scripts/win/smoke-test.ps1 `
-            -BaseUrl "https://${{ env.DUCKDNS_DOMAIN }}" `
-            -Namespace "helmet-${{ env.DEPLOY_ENVIRONMENT }}"
+          bash ./deploy/scripts/smoke-test.sh \
+            "https://${{ env.DUCKDNS_DOMAIN }}" \
+            "helmet-${{ env.DEPLOY_ENVIRONMENT }}"
 
       - name: Capture release state
         shell: bash
