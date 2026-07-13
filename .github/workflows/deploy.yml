@@ -127,6 +127,11 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
 
+      - name: Download inference model weights
+        if: ${{ env.DEPLOY_OPERATION == 'deploy' }}
+        shell: bash
+        run: bash ./deploy/scripts/linux/download-model-weights.sh
+
       - name: Build and push service images
         if: ${{ env.DEPLOY_OPERATION == 'deploy' }}
         shell: bash

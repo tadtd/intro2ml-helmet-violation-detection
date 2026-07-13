@@ -29,5 +29,7 @@ docs/_build/
 *.mkv
 backend/app/weights/*
 backend/inference/weights/*
+!backend/inference/weights/
+!backend/inference/weights/*.onnx
 
 github-key.json
