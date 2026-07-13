@@ -126,8 +126,7 @@ $secretMappings = @(
     @{ Secret = "helmet-supabase-service-role-key"; Keys = @("SUPABASE_SERVICE_ROLE_KEY") },
     @{ Secret = "helmet-supabase-jwt-secret"; Keys = @("SUPABASE_JWT_SECRET") },
     @{ Secret = "helmet-supabase-video-bucket"; Keys = @("SUPABASE_VIDEO_BUCKET") },
-    @{ Secret = "helmet-supabase-storage-bucket"; Keys = @("SUPABASE_STORAGE_BUCKET", "SUPABASE_VIOLATION_BUCKET") },
-    @{ Secret = "helmet-jwt-secret"; Keys = @("HELMET_JWT_SECRET", "JWT_SECRET", "AUTH_SECRET") }
+    @{ Secret = "helmet-supabase-storage-bucket"; Keys = @("SUPABASE_STORAGE_BUCKET", "SUPABASE_VIOLATION_BUCKET") }
 )
 
 if ($IncludeDuckDnsToken) {

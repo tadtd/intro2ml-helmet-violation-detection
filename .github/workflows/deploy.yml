@@ -227,7 +227,6 @@ jobs:
           fetch_secret SUPABASE_VIDEO_BUCKET helmet-supabase-video-bucket
           fetch_secret SUPABASE_STORAGE_BUCKET helmet-supabase-storage-bucket
           fetch_secret DUCKDNS_TOKEN helmet-duckdns-token
-          fetch_secret HELMET_JWT_SECRET helmet-jwt-secret
 
           kubectl -n "$NAMESPACE" create secret generic helmet-runtime-secrets \
             --from-env-file="$secret_env_file" \

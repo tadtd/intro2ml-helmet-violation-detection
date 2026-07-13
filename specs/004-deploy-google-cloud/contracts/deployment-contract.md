@@ -11,7 +11,7 @@ The deployment MUST create or target:
 - One Artifact Registry Docker repository in `asia-southeast1`
 - One Traefik public `LoadBalancer` Service
 - One Redis StatefulSet per environment with a small PVC
-- GCP Secret Manager secrets for Supabase, JWT, DuckDNS, and deployment credentials
+- GCP Secret Manager secrets for Supabase, DuckDNS, and deployment credentials
 - Workload Identity Federation bindings from Kubernetes service accounts to GCP IAM principals
 
 ## Workload Contract
@@ -56,7 +56,6 @@ Required secret names:
 - `helmet-supabase-video-bucket`
 - `helmet-supabase-storage-bucket`
 - `helmet-duckdns-token`
-- `helmet-jwt-secret` if separate from Supabase JWT verification
 
 Rules:
 

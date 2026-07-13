@@ -10,8 +10,7 @@ $secrets = @(
     "helmet-supabase-jwt-secret",
     "helmet-supabase-video-bucket",
     "helmet-supabase-storage-bucket",
-    "helmet-duckdns-token",
-    "helmet-jwt-secret"
+    "helmet-duckdns-token"
 )
 
 foreach ($secret in $secrets) {
