@@ -25,6 +25,17 @@ spec:
           envFrom:
             - configMapRef:
                 name: helmet-runtime-config
+          env:
+            - name: NEXT_PUBLIC_SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: helmet-runtime-secrets
+                  key: SUPABASE_URL
+            - name: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: helmet-runtime-secrets
+                  key: SUPABASE_ANON_KEY
           readinessProbe:
             httpGet:
               path: /
