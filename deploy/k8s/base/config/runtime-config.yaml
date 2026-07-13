@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helmet-runtime-config
+data:
+  ENVIRONMENT: staging
+  REDIS_URL: redis://redis:6379/0
+  SUPABASE_VIDEO_BUCKET: videos
+  SUPABASE_STORAGE_BUCKET: violations
+  USE_STUB_INFERENCE: "false"
+  NEXT_PUBLIC_API_URL: https://yourname.duckdns.org
+  NEXT_PUBLIC_WS_URL: wss://yourname.duckdns.org
+  NEXT_PUBLIC_SUPABASE_URL: https://PROJECT_REF.supabase.co

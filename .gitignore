@@ -222,11 +222,15 @@ docs/*.pdf
 # Kubernetes and deployment secrets
 *.secret.yaml
 secrets/
+!deploy/k8s/base/secrets/
+!deploy/k8s/base/secrets/*.yaml
 .kube/
 kubeconfig*
 *.key
 *.crt
 *.pem
+deploy/release-state/
+deploy/.scratch/
 
 # agents
 .agents/
@@ -242,3 +246,6 @@ kubeconfig*
 
 # Supabase temp files
 supabase/.temp/
+
+# GitHub API keys
+github-key.json

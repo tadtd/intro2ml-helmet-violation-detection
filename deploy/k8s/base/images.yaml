@@ -1,0 +1,10 @@
+apiVersion: builtin
+kind: ImageTagTransformer
+metadata:
+  name: helmet-image-tags
+imageTag:
+  name: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/frontend
+  newTag: COMMIT_SHA
+fieldSpecs:
+  - path: spec/template/spec/containers[]/image
+    kind: Deployment

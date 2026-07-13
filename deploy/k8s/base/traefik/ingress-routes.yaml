@@ -1,0 +1,35 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: helmet-public-routes
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/api/v1/videos`)
+      kind: Rule
+      services:
+        - name: ingestion
+          port: 8002
+    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/api/v1/violations`)
+      kind: Rule
+      services:
+        - name: dashboard
+          port: 8004
+    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/ws/status`)
+      kind: Rule
+      services:
+        - name: notification
+          port: 8003
+    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/ws/camera`)
+      kind: Rule
+      services:
+        - name: realtime-stream
+          port: 8005
+    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: frontend
+          port: 3000
+  tls:
+    secretName: helmet-duckdns-tls

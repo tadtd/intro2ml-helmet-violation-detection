@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: realtime-stream
+  labels:
+    app.kubernetes.io/component: realtime-stream
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: realtime-stream
+  ports:
+    - name: http
+      port: 8005
+      targetPort: http

@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestration
+  labels:
+    app.kubernetes.io/component: orchestration
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: orchestration
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: orchestration
+    spec:
+      serviceAccountName: orchestration
+      containers:
+        - name: orchestration
+          image: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/orchestration:COMMIT_SHA
+          envFrom:
+            - configMapRef:
+                name: helmet-runtime-config
+            - secretRef:
+                name: helmet-runtime-secrets

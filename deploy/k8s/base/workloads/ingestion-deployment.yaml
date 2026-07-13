@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingestion
+  labels:
+    app.kubernetes.io/component: ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: ingestion
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: ingestion
+    spec:
+      serviceAccountName: ingestion
+      containers:
+        - name: ingestion
+          image: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/ingestion:COMMIT_SHA
+          ports:
+            - name: http
+              containerPort: 8002
+          envFrom:
+            - configMapRef:
+                name: helmet-runtime-config
+            - secretRef:
+                name: helmet-runtime-secrets
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15

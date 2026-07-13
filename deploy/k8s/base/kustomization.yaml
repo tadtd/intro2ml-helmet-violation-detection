@@ -1,0 +1,61 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: helmet-violation-detection
+      app.kubernetes.io/part-of: helmet-violation-system
+      app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - serviceaccounts/serviceaccounts.yaml
+  - config/runtime-config.yaml
+  - secrets/secret-refs.yaml
+  - secrets/secret-provider.yaml
+  - workloads/frontend-deployment.yaml
+  - services/frontend-service.yaml
+  - workloads/ingestion-deployment.yaml
+  - services/ingestion-service.yaml
+  - workloads/dashboard-deployment.yaml
+  - services/dashboard-service.yaml
+  - workloads/notification-deployment.yaml
+  - services/notification-service.yaml
+  - workloads/realtime-stream-deployment.yaml
+  - services/realtime-stream-service.yaml
+  - workloads/auth-deployment.yaml
+  - services/auth-service.yaml
+  - workloads/orchestration-deployment.yaml
+  - services/orchestration-service.yaml
+  - workloads/inference-worker-deployment.yaml
+  - redis/redis-statefulset.yaml
+  - redis/redis-service.yaml
+  - traefik/traefik-deployment.yaml
+  - traefik/traefik-service.yaml
+  - traefik/traefik-config.yaml
+  - traefik/ingress-routes.yaml
+  - cert-manager/issuer.yaml
+  - cert-manager/certificate.yaml
+
+patches:
+  - path: resources/light-api-resources.yaml
+  - path: resources/frontend-resources.yaml
+  - path: resources/redis-resources.yaml
+  - path: resources/traefik-resources.yaml
+  - path: resources/inference-cpu-resources.yaml
+
+images:
+  - name: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/frontend
+    newTag: COMMIT_SHA
+  - name: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/auth
+    newTag: COMMIT_SHA
+  - name: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/ingestion
+    newTag: COMMIT_SHA
+  - name: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/dashboard
+    newTag: COMMIT_SHA
+  - name: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/notification
+    newTag: COMMIT_SHA
+  - name: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/orchestration
+    newTag: COMMIT_SHA
+  - name: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/inference
+    newTag: COMMIT_SHA

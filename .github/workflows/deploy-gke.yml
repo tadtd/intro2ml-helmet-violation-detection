@@ -1,119 +1,226 @@
-name: Deploy GKE Outline
+name: Deploy GKE
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
-      deploy:
-        description: "Set to true only after replacing placeholders and creating secrets outside git."
+      environment:
+        description: Target environment
         required: true
-        default: "false"
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      operation:
+        description: Operation to run
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - rollback
+          - smoke-test
+      commit_sha:
+        description: Commit SHA for rollback/redeploy; defaults to current SHA
+        required: false
 
 permissions:
   contents: read
   id-token: write
 
 env:
-  # Configure these as GitHub repository/environment variables, not hardcoded values.
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-  GCP_REGION: ${{ vars.GCP_REGION }}
-  ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+  GCP_REGION: ${{ vars.GKE_REGION || 'asia-southeast1' }}
   GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
-  GKE_LOCATION: ${{ vars.GKE_LOCATION }}
-  K8S_NAMESPACE: helmet-violation
-  API_IMAGE_NAME: helmet-api
-  WORKER_IMAGE_NAME: helmet-worker
-  FRONTEND_IMAGE_NAME: helmet-frontend
-  BUILD_FRONTEND: ${{ vars.BUILD_FRONTEND }}
+  ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+  DUCKDNS_DOMAIN: ${{ vars.DUCKDNS_DOMAIN }}
+  DEPLOY_ENVIRONMENT: ${{ inputs.environment || 'staging' }}
+  DEPLOY_OPERATION: ${{ inputs.operation || 'deploy' }}
 
 jobs:
-  deploy-outline:
-    name: Build, Publish, And Deploy Outline
+  frontend-checks:
+    name: Frontend Lint And Build
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.deploy == 'true' }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Lint And Validate Local Artifacts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  backend-checks:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Run backend tests
+        working-directory: backend
+        run: uv run pytest
+
+  render-manifests:
+    name: Render Kustomize Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render staging overlay
+        run: kubectl kustomize deploy/k8s/overlays/staging > /tmp/staging.yaml
+
+      - name: Render production overlay
+        run: kubectl kustomize deploy/k8s/overlays/production > /tmp/production.yaml
+
+  deploy:
+    name: Build Publish Deploy
+    runs-on: ubuntu-latest
+    needs:
+      - frontend-checks
+      - backend-checks
+      - render-manifests
+    if: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve deploy SHA
+        id: version
+        shell: bash
         run: |
-          docker compose config
-          python -m py_compile \
-            backend/app/auth.py \
-            backend/app/main.py \
-            backend/app/celery_app.py
-          test -f k8s/kustomization.yaml
+          if [ -n "${{ inputs.commit_sha }}" ]; then
+            echo "sha=${{ inputs.commit_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Authenticate To Google Cloud
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          # Required placeholders: configure workload identity provider and
-          # deploy service account outside git.
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
 
-      - name: Set Up gcloud
+      - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Artifact Registry Docker Auth
+      - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
 
-      - name: Build And Push API Image
+      - name: Build and push service images
+        if: ${{ env.DEPLOY_OPERATION == 'deploy' }}
+        shell: bash
         run: |
-          docker build -f backend/Dockerfile.api \
-            -t "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${API_IMAGE_NAME}:${GITHUB_SHA}" \
-            backend
-          docker push "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${API_IMAGE_NAME}:${GITHUB_SHA}"
+          set -euo pipefail
+          REGISTRY="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
+          declare -A DOCKERFILES=(
+            [frontend]="frontend/Dockerfile"
+            [auth]="backend/auth/Dockerfile"
+            [ingestion]="backend/ingestion/Dockerfile"
+            [dashboard]="backend/dashboard/Dockerfile"
+            [notification]="backend/notification/Dockerfile"
+            [orchestration]="backend/orchestration/Dockerfile"
+            [inference]="backend/inference/Dockerfile"
+          )
+          declare -A CONTEXTS=(
+            [frontend]="frontend"
+            [auth]="backend"
+            [ingestion]="backend"
+            [dashboard]="backend"
+            [notification]="backend"
+            [orchestration]="backend"
+            [inference]="backend"
+          )
+          for service in "${!DOCKERFILES[@]}"; do
+            image="${REGISTRY}/${service}:${{ steps.version.outputs.sha }}"
+            docker build -f "${DOCKERFILES[$service]}" -t "$image" "${CONTEXTS[$service]}"
+            docker push "$image"
+          done
 
-      - name: Build And Push Worker Image
-        run: |
-          docker build -f backend/Dockerfile.worker \
-            -t "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${WORKER_IMAGE_NAME}:${GITHUB_SHA}" \
-            backend
-          docker push "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${WORKER_IMAGE_NAME}:${GITHUB_SHA}"
-
-      - name: Build And Push Optional Frontend Image
-        if: ${{ vars.BUILD_FRONTEND == 'true' }}
-        run: |
-          docker build -f frontend/Dockerfile \
-            -t "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${FRONTEND_IMAGE_NAME}:${GITHUB_SHA}" \
-            frontend
-          docker push "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${FRONTEND_IMAGE_NAME}:${GITHUB_SHA}"
-
-      - name: Get GKE Credentials
+      - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v2
         with:
           cluster_name: ${{ env.GKE_CLUSTER }}
-          location: ${{ env.GKE_LOCATION }}
+          location: ${{ env.GCP_REGION }}
           project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Ensure Kubernetes Namespace Exists
-        run: kubectl apply -f k8s/namespace.yaml
-
-      - name: Verify Required Kubernetes Secrets Exist
+      - name: Install kustomize
+        shell: bash
         run: |
-          kubectl -n "${K8S_NAMESPACE}" get secret helmet-api-secrets
-          if [ "${BUILD_FRONTEND:-false}" = "true" ]; then
-            kubectl -n "${K8S_NAMESPACE}" get secret helmet-frontend-public-config
-          fi
+          set -euo pipefail
+          curl -sSLo /tmp/kustomize.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz
+          tar -xzf /tmp/kustomize.tar.gz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/kustomize
 
-      - name: Apply Required Kubernetes Manifests
+      - name: Apply Kustomize overlay
+        if: ${{ env.DEPLOY_OPERATION != 'smoke-test' }}
+        shell: bash
         run: |
-          kubectl apply -f k8s/redis.yaml
-          kubectl apply -f k8s/api.yaml
-          kubectl apply -f k8s/worker.yaml
-          kubectl -n "${K8S_NAMESPACE}" set image deployment/helmet-api \
-            api="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${API_IMAGE_NAME}:${GITHUB_SHA}"
-          kubectl -n "${K8S_NAMESPACE}" set image deployment/helmet-worker \
-            worker="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${WORKER_IMAGE_NAME}:${GITHUB_SHA}"
-          if [ "${BUILD_FRONTEND:-false}" = "true" ]; then
-            kubectl apply -f k8s/frontend.yaml
-            kubectl -n "${K8S_NAMESPACE}" set image deployment/helmet-frontend \
-              frontend="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${FRONTEND_IMAGE_NAME}:${GITHUB_SHA}"
-          fi
+          set -euo pipefail
+          OVERLAY="deploy/k8s/overlays/${DEPLOY_ENVIRONMENT}"
+          REGISTRY="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
+          for service in frontend auth ingestion dashboard notification orchestration inference; do
+            (cd "$OVERLAY" && kustomize edit set image \
+              "asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/${service}=${REGISTRY}/${service}:${{ steps.version.outputs.sha }}")
+          done
+          kubectl apply -k "$OVERLAY"
 
-      - name: Post Deploy Health Validation
+      - name: Wait for rollouts
+        shell: bash
         run: |
-          kubectl -n "${K8S_NAMESPACE}" rollout status deployment/helmet-api --timeout=180s
-          kubectl -n "${K8S_NAMESPACE}" rollout status deployment/helmet-worker --timeout=180s
-          kubectl -n "${K8S_NAMESPACE}" get service helmet-api
+          set -euo pipefail
+          NAMESPACE="helmet-${DEPLOY_ENVIRONMENT}"
+          for deployment in frontend ingestion auth dashboard notification orchestration inference-worker realtime-stream traefik; do
+            kubectl -n "$NAMESPACE" rollout status "deployment/${deployment}" --timeout=180s
+          done
+          kubectl -n "$NAMESPACE" rollout status statefulset/redis --timeout=180s
+
+      - name: Run smoke checks
+        shell: pwsh
+        run: |
+          ./deploy/scripts/win/smoke-test.ps1 `
+            -BaseUrl "https://${{ env.DUCKDNS_DOMAIN }}" `
+            -Namespace "helmet-${{ env.DEPLOY_ENVIRONMENT }}"
+
+      - name: Capture release state
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAMESPACE="helmet-${DEPLOY_ENVIRONMENT}"
+          mkdir -p release-state
+          {
+            echo "{"
+            echo "  \"environment\": \"${DEPLOY_ENVIRONMENT}\","
+            echo "  \"operation\": \"${DEPLOY_OPERATION}\","
+            echo "  \"commitSha\": \"${{ steps.version.outputs.sha }}\","
+            echo "  \"deployedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
+            echo "  \"images\": ["
+            kubectl -n "$NAMESPACE" get deploy -o jsonpath='{range .items[*]}{"    \""}{.metadata.name}{": "}{range .spec.template.spec.containers[*]}{.image}{" "}{end}{"\",\n"}{end}'
+            echo "  ]"
+            echo "}"
+          } > "release-state/${DEPLOY_ENVIRONMENT}-${{ steps.version.outputs.sha }}.json"
+
+      - name: Upload release state
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-state-${{ env.DEPLOY_ENVIRONMENT }}-${{ steps.version.outputs.sha }}
+          path: release-state/

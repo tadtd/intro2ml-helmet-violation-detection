@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestration
+  labels:
+    app.kubernetes.io/component: orchestration
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: orchestration
+  ports:
+    - name: internal
+      port: 8080
+      targetPort: 8080

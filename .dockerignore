@@ -29,3 +29,5 @@ docs/_build/
 *.mkv
 backend/app/weights/*
 backend/inference/weights/*
+
+github-key.json

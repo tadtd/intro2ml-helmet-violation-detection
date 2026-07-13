@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference-worker
+  labels:
+    app.kubernetes.io/component: inference-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: inference-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: inference-worker
+    spec:
+      serviceAccountName: inference-worker
+      containers:
+        - name: inference-worker
+          image: asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/inference:COMMIT_SHA
+          envFrom:
+            - configMapRef:
+                name: helmet-runtime-config
+            - secretRef:
+                name: helmet-runtime-secrets
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import os, socket; host=os.environ['REDIS_URL'].split('//',1)[1].split(':',1)[0]; socket.create_connection((host,6379),5).close()"
+            initialDelaySeconds: 20
+            periodSeconds: 30

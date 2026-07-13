@@ -159,18 +159,12 @@ when the commands or expected checks change.
 
 ## 📦 Deployment Artifact Review
 
-Production handoff artifacts are reviewable outlines, not a production rollout.
-Review them after the local Docker Compose smoke test passes:
+Google Cloud deployment documentation and assets are located in:
 
-- [k8s/README.md](k8s/README.md) for GKE manifest handoff, secret placeholder
-  creation, image placeholder replacement, and failure notes.
-- [k8s/kustomization.yaml](k8s/kustomization.yaml) for the manifest grouping.
-- [.github/workflows/deploy-gke.yml](.github/workflows/deploy-gke.yml) for the
-  GKE deployment pipeline outline using Artifact Registry and workload identity.
-
-The existing `.github/deploy.yml` file is empty/nonstandard and is not the
-target workflow. Terraform, Helm, ArgoCD, and External Secrets are not required
-for this feature.
+- [`docs/deployment/google-cloud.md`](docs/deployment/google-cloud.md) for the deployment scope, implementation order, owner checklist, and incident runbook.
+- [`deploy/k8s/`](deploy/k8s/) for the production-ready Kubernetes manifests managed with Kustomize.
+- [`.github/workflows/deploy-gke.yml`](.github/workflows/deploy-gke.yml) for the GKE deployment CI/CD workflow pipeline using Artifact Registry and Workload Identity.
+- [`deploy/scripts/win/`](deploy/scripts/win/) for validation, setup, and smoke testing utilities.
 
 ## 🔒 Security Rules
 

@@ -1,0 +1,3 @@
+app.kubernetes.io/name: helmet-violation-detection
+app.kubernetes.io/part-of: helmet-violation-system
+app.kubernetes.io/managed-by: kustomize
