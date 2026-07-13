@@ -179,19 +179,11 @@ jobs:
           kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml"
           kubectl apply -f "https://raw.githubusercontent.com/traefik/traefik/${TRAEFIK_CRD_VERSION}/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml"
 
-          helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
-          helm repo update
-          helm upgrade --install csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver \
-            --namespace kube-system \
-            --set syncSecret.enabled=true
-          kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/secrets-store-csi-driver-provider-gcp/main/deploy/provider-gcp-plugin.yaml
-
           kubectl -n cert-manager rollout status deployment/cert-manager --timeout=180s
           kubectl -n cert-manager rollout status deployment/cert-manager-cainjector --timeout=180s
           kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=180s
           kubectl wait --for=condition=Established --timeout=120s crd/certificates.cert-manager.io
           kubectl wait --for=condition=Established --timeout=120s crd/clusterissuers.cert-manager.io
-          kubectl wait --for=condition=Established --timeout=120s crd/secretproviderclasses.secrets-store.csi.x-k8s.io
           kubectl wait --for=condition=Established --timeout=120s crd/ingressroutes.traefik.io
 
       - name: Apply Kustomize overlay
@@ -200,11 +192,31 @@ jobs:
         run: |
           set -euo pipefail
           OVERLAY="deploy/k8s/overlays/${DEPLOY_ENVIRONMENT}"
+          NAMESPACE="helmet-${DEPLOY_ENVIRONMENT}"
           REGISTRY="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
           for service in frontend auth ingestion dashboard notification orchestration inference; do
             (cd "$OVERLAY" && kustomize edit set image \
               "asia-southeast1-docker.pkg.dev/PROJECT_ID/REPOSITORY/${service}=${REGISTRY}/${service}:${{ steps.version.outputs.sha }}")
           done
+          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+
+          secret_env_file="$(mktemp)"
+          trap 'rm -f "$secret_env_file"' EXIT
+          {
+            printf 'SUPABASE_URL=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-url)"
+            printf 'SUPABASE_ANON_KEY=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-anon-key)"
+            printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-service-role-key)"
+            printf 'SUPABASE_JWT_SECRET=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-jwt-secret)"
+            printf 'SUPABASE_VIDEO_BUCKET=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-video-bucket)"
+            printf 'SUPABASE_STORAGE_BUCKET=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-supabase-storage-bucket)"
+            printf 'DUCKDNS_TOKEN=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-duckdns-token)"
+            printf 'HELMET_JWT_SECRET=%s\n' "$(gcloud secrets versions access latest --project "$GCP_PROJECT_ID" --secret helmet-jwt-secret)"
+          } > "$secret_env_file"
+          kubectl -n "$NAMESPACE" create secret generic helmet-runtime-secrets \
+            --from-env-file="$secret_env_file" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
           kubectl apply -f deploy/k8s/base/cert-manager/issuer.yaml
           kubectl apply -k "$OVERLAY"
 

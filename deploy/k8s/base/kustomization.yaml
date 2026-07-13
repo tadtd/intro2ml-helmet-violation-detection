@@ -12,7 +12,6 @@ resources:
   - serviceaccounts/serviceaccounts.yaml
   - config/runtime-config.yaml
   - secrets/secret-refs.yaml
-  - secrets/secret-provider.yaml
   - workloads/frontend-deployment.yaml
   - services/frontend-service.yaml
   - workloads/ingestion-deployment.yaml

@@ -9,7 +9,6 @@ resources:
 
 patches:
   - path: patches/public-endpoint.yaml
-  - path: patches/secrets.yaml
   - path: patches/replicas.yaml
   - target:
       kind: ClusterRoleBinding
