@@ -4,8 +4,8 @@ metadata:
   name: helmet-runtime-config
 data:
   ENVIRONMENT: production
-  NEXT_PUBLIC_API_URL: https://yourname.duckdns.org
-  NEXT_PUBLIC_WS_URL: wss://yourname.duckdns.org
+  NEXT_PUBLIC_API_URL: https://dtdat-nthv.duckdns.org
+  NEXT_PUBLIC_WS_URL: wss://dtdat-nthv.duckdns.org
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -13,27 +13,27 @@ metadata:
   name: helmet-public-routes
 spec:
   routes:
-    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/api/v1/videos`)
+    - match: Host(`dtdat-nthv.duckdns.org`) && PathPrefix(`/api/v1/videos`)
       kind: Rule
       services:
         - name: ingestion
           port: 8002
-    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/api/v1/violations`)
+    - match: Host(`dtdat-nthv.duckdns.org`) && PathPrefix(`/api/v1/violations`)
       kind: Rule
       services:
         - name: dashboard
           port: 8004
-    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/ws/status`)
+    - match: Host(`dtdat-nthv.duckdns.org`) && PathPrefix(`/ws/status`)
       kind: Rule
       services:
         - name: notification
           port: 8003
-    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/ws/camera`)
+    - match: Host(`dtdat-nthv.duckdns.org`) && PathPrefix(`/ws/camera`)
       kind: Rule
       services:
         - name: realtime-stream
           port: 8005
-    - match: Host(`yourname.duckdns.org`) && PathPrefix(`/`)
+    - match: Host(`dtdat-nthv.duckdns.org`) && PathPrefix(`/`)
       kind: Rule
       services:
         - name: frontend
@@ -45,4 +45,4 @@ metadata:
   name: helmet-duckdns
 spec:
   dnsNames:
-    - yourname.duckdns.org
+    - dtdat-nthv.duckdns.org
