@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, use, useMemo, useEffect } from 'react';
+import React, { useState, useRef, use, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFilterStore } from '../../../store/useFilterStore';
 import { useAuthContext } from '../../providers';
@@ -16,6 +16,18 @@ import Link from 'next/link';
 
 interface ResultsPageProps {
   searchParams: Promise<{ video_id?: string }>;
+}
+
+interface ViolationApiItem {
+  id: string;
+  video_offset?: number | string | null;
+  timestamp?: number;
+  bbox: [number, number, number, number];
+  confidence: number;
+  reviewed?: boolean;
+  isFlagged?: boolean;
+  image_url?: string | null;
+  imageUrl?: string | null;
 }
 
 export default function ResultsPage({ searchParams }: ResultsPageProps) {
@@ -60,15 +72,18 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
   };
 
   const violations = useMemo(() => {
-    return (violationsData || []).map((v: any) => {
-      let offset = typeof v.video_offset === 'number' ? v.video_offset : parseFloat(v.video_offset);
+    return ((violationsData || []) as ViolationApiItem[]).map((v) => {
+      let offset = typeof v.video_offset === 'number'
+        ? v.video_offset
+        : Number.parseFloat(String(v.video_offset ?? v.timestamp ?? 0));
       if (isNaN(offset)) {
         offset = 0;
       }
       return {
         ...v,
         timestamp: offset,
-        label: 'non-helmet',
+        label: 'non-helmet' as const,
+        isFlagged: v.isFlagged ?? true,
       };
     }) as ViolationOverlay[];
   }, [violationsData]);
@@ -78,17 +93,10 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
   const pendingViolations = violations.filter(
     (v) => !(v as { reviewed?: boolean }).reviewed
   );
-  const selectedViolation = pendingViolations.find((v) => v.id === selectedId) ?? null;
-
-  // Keep a pending violation selected; when the selected one leaves the queue,
-  // move to the next one so the reviewer can keep going.
-  useEffect(() => {
-    if (pendingViolations.length === 0) {
-      if (selectedId !== null) setSelectedId(null);
-    } else if (!pendingViolations.some((v) => v.id === selectedId)) {
-      setSelectedId(pendingViolations[0].id);
-    }
-  }, [pendingViolations, selectedId]);
+  const activeSelectedId = pendingViolations.some((v) => v.id === selectedId)
+    ? selectedId
+    : pendingViolations[0]?.id ?? null;
+  const selectedViolation = pendingViolations.find((v) => v.id === activeSelectedId) ?? null;
 
   return (
     <div className="flex flex-col space-y-6 p-6 text-white max-w-7xl mx-auto">
@@ -173,7 +181,7 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
           )}
           <EvidenceGallery
             violations={pendingViolations}
-            selectedId={selectedId}
+            selectedId={activeSelectedId}
             onSelect={(v) => setSelectedId(v.id)}
           />
         </div>

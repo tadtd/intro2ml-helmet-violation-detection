@@ -14,7 +14,6 @@ interface ViolationTimelineProps {
 
 export default function ViolationTimeline({
   violations,
-  currentTime,
   selectedId,
   onSelect,
 }: ViolationTimelineProps) {
