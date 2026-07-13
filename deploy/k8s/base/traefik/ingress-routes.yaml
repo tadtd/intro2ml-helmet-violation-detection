@@ -1,6 +1,15 @@
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
+  name: videos-strip-api-prefix
+spec:
+  stripPrefix:
+    prefixes:
+      - /api/v1
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
   name: dashboard-strip-api-prefix
 spec:
   stripPrefix:
@@ -17,6 +26,8 @@ spec:
   routes:
     - match: Host(`yourname.duckdns.org`) && PathPrefix(`/api/v1/videos`)
       kind: Rule
+      middlewares:
+        - name: videos-strip-api-prefix
       services:
         - name: ingestion
           port: 8002

@@ -15,6 +15,8 @@ spec:
   routes:
     - match: Host(`dtdat-nthv.duckdns.org`) && PathPrefix(`/api/v1/videos`)
       kind: Rule
+      middlewares:
+        - name: videos-strip-api-prefix
       services:
         - name: ingestion
           port: 8002
