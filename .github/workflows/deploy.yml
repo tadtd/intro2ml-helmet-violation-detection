@@ -350,10 +350,11 @@ jobs:
         run: |
           set -euo pipefail
           NAMESPACE="helmet-${DEPLOY_ENVIRONMENT}"
+          rollout_timeout="600s"
           for deployment in frontend ingestion auth dashboard notification orchestration inference-worker realtime-stream traefik; do
-            kubectl -n "$NAMESPACE" rollout status "deployment/${deployment}" --timeout=180s
+            kubectl -n "$NAMESPACE" rollout status "deployment/${deployment}" --timeout="$rollout_timeout"
           done
-          kubectl -n "$NAMESPACE" rollout status statefulset/redis --timeout=180s
+          kubectl -n "$NAMESPACE" rollout status statefulset/redis --timeout="$rollout_timeout"
           kubectl -n "$NAMESPACE" wait --for=condition=Ready certificate/helmet-duckdns --timeout=600s
 
       - name: Run smoke checks
