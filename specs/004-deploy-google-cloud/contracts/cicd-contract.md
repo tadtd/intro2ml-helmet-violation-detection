@@ -22,7 +22,7 @@ Pull requests SHOULD run validation steps without deploying.
    - `notification`
    - `orchestration`
    - `inference`
-5. Authenticate to Google Cloud without committing service account keys.
+5. Authenticate to Google Cloud from the `GCP_SA_KEY` GitHub Actions secret without committing service account keys.
 6. Configure Docker authentication for Artifact Registry.
 7. Push images to `asia-southeast1` Artifact Registry with commit-SHA tags.
 8. Render the selected Kustomize overlay with the same commit SHA.
@@ -55,17 +55,19 @@ Manual dispatch MAY accept:
 | `commit_sha` | Git SHA | Redeploy or rollback target |
 | `operation` | `deploy`, `rollback`, `smoke-test` | Select workflow path |
 
-## Required GitHub Secrets or Variables
+## Required GitHub Secrets And Variables
 
-The workflow needs references for:
+The workflow needs one GitHub Actions secret:
 
-- `GCP_PROJECT_ID`
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`
-- `GCP_DEPLOY_SERVICE_ACCOUNT`
-- `GKE_CLUSTER`
+- `GCP_SA_KEY`
+
+The workflow needs these GitHub Actions variables:
+
+- `GCP_PROJECT_ID=helmet-detection-2026`
 - `GKE_REGION=asia-southeast1`
-- `ARTIFACT_REGISTRY_REPOSITORY`
-- `DUCKDNS_DOMAIN`
+- `GKE_CLUSTER=helmet-cluster`
+- `ARTIFACT_REGISTRY_REPOSITORY=helmet-repo`
+- `DUCKDNS_DOMAIN=dtdathcmus.duckdns.org`
 
 Runtime application secrets remain in GCP Secret Manager, not GitHub secrets, unless needed only by CI validation.
 

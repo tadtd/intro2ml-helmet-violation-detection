@@ -6,7 +6,7 @@
 
 ## Requirement Completeness
 
-- [ ] CHK001 Are all required infrastructure artifact paths explicitly named, including `docs/supabase-setup.md`, `docs/devops-smoke-test.md`, `k8s/README.md`, `k8s/`, and `.github/workflows/deploy-gke.yml`? [Completeness, Plan Source Code]
+- [ ] CHK001 Are all required infrastructure artifact paths explicitly named, including `docs/supabase-setup.md`, `docs/devops-smoke-test.md`, `k8s/README.md`, `k8s/`, and `.github/workflows/deploy.yml`? [Completeness, Plan Source Code]
 - [ ] CHK002 Are the requirements clear that `k8s/` is newly created by this feature rather than an existing directory? [Completeness, Plan Project Type]
 - [ ] CHK003 Are the split documentation responsibilities fully defined for Supabase setup, local smoke testing, and Kubernetes handoff? [Completeness, Plan Structure Decision]
 - [ ] CHK004 Are missing schema additions for indexes and realtime enablement specified as ordered schema modules after `03_violations.sql`? [Completeness, Spec FR-002, Plan Schema Safety]
@@ -17,7 +17,7 @@
 
 - [ ] CHK007 Is the secret handling model stated unambiguously for local `.env`, CI workload identity, GCP Secret Manager references, and Kubernetes Secret placeholders? [Clarity, Spec FR-013, Plan Constraints]
 - [ ] CHK008 Is the existing `.github/deploy.yml` clearly described as empty/nonstandard and not the target workflow path? [Clarity, Plan Scale/Scope]
-- [ ] CHK009 Is the target workflow path `.github/workflows/deploy-gke.yml` stated consistently enough to prevent workflow placement ambiguity? [Clarity, Contract CI/CD Outline]
+- [ ] CHK009 Is the target workflow path `.github/workflows/deploy.yml` stated consistently enough to prevent workflow placement ambiguity? [Clarity, Contract CI/CD Outline]
 - [ ] CHK010 Are storage bucket policies precise for `videos` private and `violations` public-read, including which bucket holds which artifact type? [Clarity, Spec FR-003]
 - [ ] CHK011 Is the Docker smoke-test boundary explicit that full ML inference and violation crop generation are out of scope? [Clarity, Data Model Local Runtime Runbook]
 - [ ] CHK012 Are deployment boundary exclusions explicit for production rollout, DNS, TLS, GKE provisioning, Terraform, Helm, ArgoCD, and External Secrets? [Clarity, Plan Constraints]
@@ -72,7 +72,7 @@
 
 Reviewed during implementation after adding `docs/supabase-setup.md`,
 `docs/devops-smoke-test.md`, `k8s/README.md`, `k8s/*.yaml`, and
-`.github/workflows/deploy-gke.yml`. The remaining checklist boxes are preserved
+`.github/workflows/deploy.yml`. The remaining checklist boxes are preserved
 as original requirements-quality questions, and the implementation artifacts now
 document local reproducibility, Supabase setup completeness, storage bucket
 policy, Docker smoke-test steps, Kubernetes deployment boundary, CI/CD

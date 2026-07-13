@@ -11,7 +11,7 @@ monorepo. The implementation will document Supabase development setup, add
 missing ordered schema modules for indexes and realtime support, document
 storage bucket policies, keep Docker Compose as the first local validation path,
 add reviewable GKE deployment artifacts under `k8s/`, outline GitHub Actions
-deployment through Artifact Registry at `.github/workflows/deploy-gke.yml`, and
+deployment through Artifact Registry at `.github/workflows/deploy.yml`, and
 update runbooks with PowerShell-ready smoke tests. Infrastructure handoff docs
 will be split across `docs/supabase-setup.md`, `docs/devops-smoke-test.md`, and
 `k8s/README.md`. This feature does not implement ML inference, model
@@ -62,7 +62,7 @@ External Secrets as required dependencies.
 **Scale/Scope**: Single infrastructure feature for the current monorepo.
 Mandatory scope includes Supabase setup docs, ordered schema additions, local
 Compose smoke tests, k8s manifests for API/worker/Redis/optional frontend, and a
-GitHub Actions deployment outline at `.github/workflows/deploy-gke.yml`.
+GitHub Actions deployment outline at `.github/workflows/deploy.yml`.
 Existing `.github/deploy.yml` is currently empty/nonstandard and is not the
 target workflow path. Excludes ML inference implementation and frontend workflow
 implementation.
@@ -137,7 +137,7 @@ k8s/
 
 .github/
 `-- workflows/
-    `-- deploy-gke.yml
+    `-- deploy.yml
 
 .github/
 `-- deploy.yml        # existing empty/nonstandard file; not used as target workflow
@@ -150,7 +150,7 @@ docker-compose.yml
 additions stay under `backend/supabase/schema/`, runtime runbooks stay under
 `docs/supabase-setup.md` and `docs/devops-smoke-test.md`, production manifests
 and deployment handoff stay under a new `k8s/` directory with `k8s/README.md`,
-and the CI/CD outline is placed under `.github/workflows/deploy-gke.yml`.
+and the CI/CD outline is placed under `.github/workflows/deploy.yml`.
 The existing `.github/deploy.yml` is empty/nonstandard and will not be used as
 the deployment workflow. No new application scaffold or parallel monorepo is
 introduced.

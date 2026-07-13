@@ -22,7 +22,7 @@
 - [X] T002 [P] Review `.env.example` and document any placeholder-only environment variable gaps for Supabase, Redis, API, worker, and frontend-safe keys in `.env.example`
 - [X] T003 [P] Review existing `docker-compose.yml` service names and ports for `redis`, `api`, and `worker` and record any mismatch against `specs/001-infra-devops-foundation/contracts/local-smoke-tests.md`
 - [X] T004 [P] Review existing Supabase schema files `backend/supabase/schema/01_profiles.sql`, `backend/supabase/schema/02_videos.sql`, and `backend/supabase/schema/03_violations.sql` for ordered setup references needed by `docs/supabase-setup.md`
-- [X] T005 [P] Review existing `.github/deploy.yml` and record that it is empty/nonstandard and not the target workflow for later documentation in `.github/workflows/deploy-gke.yml`
+- [X] T005 [P] Review existing `.github/deploy.yml` and record that it is empty/nonstandard and not the target workflow for later documentation in `.github/workflows/deploy.yml`
 
 ---
 
@@ -36,9 +36,9 @@
 - [X] T007 Create skeleton `docs/devops-smoke-test.md` with sections for prerequisites, local env safety, Compose startup, health check, authenticated upload check, Supabase verification, worker readiness, and troubleshooting
 - [X] T008 Create skeleton `k8s/README.md` with sections for artifact purpose, non-goals, secret placeholders, image placeholders, review steps, and no Terraform/Helm/ArgoCD/External Secrets dependency
 - [X] T009 Create placeholder-only Kubernetes directory manifest index `k8s/kustomization.yaml` with comments for planned resources; final resource references are completed in T038 after manifests exist
-- [X] T010 Create GitHub Actions workflow skeleton `.github/workflows/deploy-gke.yml` with non-secret placeholders for GCP project, region, Artifact Registry, GKE cluster, workload identity, and a comment that `.github/deploy.yml` is empty/nonstandard and not the target workflow
+- [X] T010 Create GitHub Actions workflow skeleton `.github/workflows/deploy.yml` with non-secret placeholders for GCP project, region, Artifact Registry, GKE cluster, workload identity, and a comment that `.github/deploy.yml` is empty/nonstandard and not the target workflow
 - [X] T011 Document secret handling rules in `docs/devops-smoke-test.md` and `k8s/README.md`, covering untracked `.env`, workload identity, GCP Secret Manager references, Kubernetes Secret placeholders, and prohibited committed secret classes
-- [X] T012 Verify no generated skeleton file contains real tokens, service-role keys, kubeconfigs, certificates, private keys, or real `.env` values in `docs/supabase-setup.md`, `docs/devops-smoke-test.md`, `k8s/README.md`, and `.github/workflows/deploy-gke.yml`
+- [X] T012 Verify no generated skeleton file contains real tokens, service-role keys, kubeconfigs, certificates, private keys, or real `.env` values in `docs/supabase-setup.md`, `docs/devops-smoke-test.md`, `k8s/README.md`, and `.github/workflows/deploy.yml`
 
 **Checkpoint**: Skeletons and safety constraints are ready for independently testable user-story implementation.
 
@@ -93,7 +93,7 @@
 
 **Goal**: An infrastructure owner can review GKE Kubernetes manifests and a GitHub Actions deployment outline with secret management clearly separated from source-controlled files.
 
-**Independent Test**: The infrastructure owner can inspect `k8s/` and `.github/workflows/deploy-gke.yml`, confirm all required runtime components are represented, see placeholder image/secret inputs, and verify no production rollout, DNS, TLS, Terraform, Helm, ArgoCD, or External Secrets dependency is required.
+**Independent Test**: The infrastructure owner can inspect `k8s/` and `.github/workflows/deploy.yml`, confirm all required runtime components are represented, see placeholder image/secret inputs, and verify no production rollout, DNS, TLS, Terraform, Helm, ArgoCD, or External Secrets dependency is required.
 
 ### Implementation for User Story 3
 
@@ -105,11 +105,11 @@
 - [X] T037 [P] [US3] Create `k8s/secrets.example.yaml` containing only placeholder secret names and instructions comments, with no secret values
 - [X] T038 [US3] Finalize `k8s/kustomization.yaml` so it references every planned manifest file in `k8s/`
 - [X] T039 [US3] Write `k8s/README.md` with GKE handoff notes, manifest review order, image placeholder replacement guidance, secret creation guidance, and out-of-scope boundaries for rollout, DNS, TLS, Terraform, Helm, ArgoCD, and External Secrets
-- [X] T040 [US3] Create `.github/workflows/deploy-gke.yml` with reviewable stages for workload identity authentication, Docker image build, Artifact Registry push, GKE credential setup, manifest apply/render, and post-deploy health validation
-- [X] T041 [US3] Add comments in `.github/workflows/deploy-gke.yml` identifying required placeholders for GCP project, workload identity provider, service account, Artifact Registry repository, image names, GKE cluster, namespace, and secret references
-- [X] T042 [US3] Document in `k8s/README.md` that existing `.github/deploy.yml` is empty/nonstandard and `.github/workflows/deploy-gke.yml` is the target workflow path
-- [X] T043 [US3] Review `k8s/*.yaml` and `.github/workflows/deploy-gke.yml` to ensure they contain placeholders only and no real project IDs, service-role keys, kubeconfigs, certificates, private keys, or secret values
-- [X] T044 [US3] Update `README.md` to link to `k8s/README.md` and `.github/workflows/deploy-gke.yml` for deployment artifact review
+- [X] T040 [US3] Create `.github/workflows/deploy.yml` with reviewable stages for workload identity authentication, Docker image build, Artifact Registry push, GKE credential setup, manifest apply/render, and post-deploy health validation
+- [X] T041 [US3] Add comments in `.github/workflows/deploy.yml` identifying required placeholders for GCP project, workload identity provider, service account, Artifact Registry repository, image names, GKE cluster, namespace, and secret references
+- [X] T042 [US3] Document in `k8s/README.md` that existing `.github/deploy.yml` is empty/nonstandard and `.github/workflows/deploy.yml` is the target workflow path
+- [X] T043 [US3] Review `k8s/*.yaml` and `.github/workflows/deploy.yml` to ensure they contain placeholders only and no real project IDs, service-role keys, kubeconfigs, certificates, private keys, or secret values
+- [X] T044 [US3] Update `README.md` to link to `k8s/README.md` and `.github/workflows/deploy.yml` for deployment artifact review
 
 **Checkpoint**: User Story 3 is complete when production deployment artifacts are reviewable, scoped to handoff, and free of real secrets.
 
@@ -119,11 +119,11 @@
 
 **Purpose**: Align docs, checklists, and generated artifacts across all stories.
 
-- [X] T045 [P] Reconcile `specs/001-infra-devops-foundation/quickstart.md` with final `docs/supabase-setup.md`, `docs/devops-smoke-test.md`, `k8s/README.md`, and `.github/workflows/deploy-gke.yml`
+- [X] T045 [P] Reconcile `specs/001-infra-devops-foundation/quickstart.md` with final `docs/supabase-setup.md`, `docs/devops-smoke-test.md`, `k8s/README.md`, and `.github/workflows/deploy.yml`
 - [X] T046 [P] Update `backend/README.md` to point Supabase schema and bucket setup readers to `docs/supabase-setup.md`
 - [X] T047 [P] Review `specs/001-infra-devops-foundation/checklists/devops.md` and mark or note any requirement-quality gaps resolved by the final docs
 - [X] T048 Validate task format and artifact scope in `specs/001-infra-devops-foundation/tasks.md`, ensuring every implementation task has a file path and no task introduces ML inference or frontend workflow implementation
-- [X] T049 Run a repository secret-safety review over `.env.example`, `docs/`, `k8s/`, `.github/workflows/deploy-gke.yml`, and `README.md` to confirm only placeholders are tracked
+- [X] T049 Run a repository secret-safety review over `.env.example`, `docs/`, `k8s/`, `.github/workflows/deploy.yml`, and `README.md` to confirm only placeholders are tracked
 - [X] T050 Run the documented local smoke-test commands from `docs/devops-smoke-test.md` if local Supabase credentials are available, otherwise record the credential blocker in `docs/devops-smoke-test.md`
 
 ---
@@ -202,7 +202,7 @@ After Phase 2, one developer can work on US1 schema/docs while another drafts US
 - [P] tasks touch different files or can proceed without dependency on incomplete tasks.
 - Story labels map to the three user stories in `specs/001-infra-devops-foundation/spec.md`.
 - Do not add Terraform, Helm, ArgoCD, External Secrets, ML inference, or frontend workflow implementation tasks.
-- Keep `.github/deploy.yml` documented as empty/nonstandard; create the target workflow at `.github/workflows/deploy-gke.yml`.
+- Keep `.github/deploy.yml` documented as empty/nonstandard; create the target workflow at `.github/workflows/deploy.yml`.
 - Keep all secrets as placeholders, GCP Secret Manager references, Kubernetes Secret placeholder names, or untracked local `.env` values.
 
 ---
@@ -211,7 +211,7 @@ After Phase 2, one developer can work on US1 schema/docs while another drafts US
 
 - [X] T051 Create the missing repository-local handoff directories `k8s/` and `.github/workflows/`, preserving existing `docs/README.md` and empty `.github/deploy.yml`, per FR-014 and SC-006 (partial)
 - [X] T052 Add the reviewable GKE manifest set under `k8s/` for namespace, Redis, FastAPI API, Celery worker, optional frontend, secret placeholders, and final `k8s/kustomization.yaml` per FR-011 and US3 (missing)
-- [X] T053 Add `.github/workflows/deploy-gke.yml` with placeholder-only workload identity, Artifact Registry build/push, GKE credential setup, manifest apply/render, and post-deploy health validation stages per FR-012 and US3 (missing)
-- [X] T054 Document production secret inputs in `k8s/README.md`, `k8s/secrets.example.yaml`, and `.github/workflows/deploy-gke.yml` using workload identity, GCP Secret Manager references, or Kubernetes Secret placeholders per FR-013 and CA-005 (partial)
-- [X] T055 Run a final production-artifact secret-safety review over `k8s/*.yaml`, `.github/workflows/deploy-gke.yml`, `.env.example`, `docs/`, and `README.md` to confirm only placeholders are tracked per FR-015 and SC-004 (partial)
+- [X] T053 Add `.github/workflows/deploy.yml` with placeholder-only workload identity, Artifact Registry build/push, GKE credential setup, manifest apply/render, and post-deploy health validation stages per FR-012 and US3 (missing)
+- [X] T054 Document production secret inputs in `k8s/README.md`, `k8s/secrets.example.yaml`, and `.github/workflows/deploy.yml` using workload identity, GCP Secret Manager references, or Kubernetes Secret placeholders per FR-013 and CA-005 (partial)
+- [X] T055 Run a final production-artifact secret-safety review over `k8s/*.yaml`, `.github/workflows/deploy.yml`, `.env.example`, `docs/`, and `README.md` to confirm only placeholders are tracked per FR-015 and SC-004 (partial)
 - [X] T056 Reconcile `README.md`, `backend/README.md`, and `specs/001-infra-devops-foundation/quickstart.md` with the final Supabase, local smoke-test, Kubernetes, and workflow handoff docs per SC-005 and SC-007 (partial)

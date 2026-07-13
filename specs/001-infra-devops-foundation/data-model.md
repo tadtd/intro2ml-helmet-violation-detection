@@ -83,7 +83,7 @@ owners.
 - `k8s/frontend.yaml`
 - `k8s/secrets.example.yaml`
 - `k8s/kustomization.yaml`
-- `.github/workflows/deploy-gke.yml`
+- `.github/workflows/deploy.yml`
 - `.github/deploy.yml`: existing empty/nonstandard file, not the target
   workflow path.
 

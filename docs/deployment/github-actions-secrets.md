@@ -4,16 +4,18 @@ Use repository or environment variables for non-secret deployment identifiers.
 
 ## Required Variables
 
-- `GCP_PROJECT_ID`
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`
-- `GCP_DEPLOY_SERVICE_ACCOUNT`
-- `GKE_CLUSTER`
-- `GKE_REGION`
-- `ARTIFACT_REGISTRY_REPOSITORY`
-- `DUCKDNS_DOMAIN`
+- `GCP_PROJECT_ID=helmet-detection-2026`
+- `GKE_REGION=asia-southeast1`
+- `GKE_CLUSTER=helmet-cluster`
+- `ARTIFACT_REGISTRY_REPOSITORY=helmet-repo`
+- `DUCKDNS_DOMAIN=dtdathcmus.duckdns.org`
+
+## Required Secrets
+
+- `GCP_SA_KEY`
 
 ## Runtime Secrets
 
 Runtime application secrets belong in GCP Secret Manager, not GitHub secrets.
 
-GitHub Actions may need only deployment identity configuration. Avoid service account JSON keys; prefer Workload Identity Federation.
+`GCP_SA_KEY` is the JSON key for the deploy service account. Keep it in GitHub Actions secrets only; do not commit it to the repository.

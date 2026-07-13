@@ -7,7 +7,7 @@ Complete these before applying manifests.
 - [ ] GKE, Artifact Registry, Secret Manager, IAM, and Cloud Billing APIs are enabled.
 - [ ] GKE Autopilot cluster exists in `asia-southeast1`.
 - [ ] Artifact Registry Docker repository exists in `asia-southeast1`.
-- [ ] GitHub Actions Workload Identity Federation provider exists.
+- [ ] GitHub Actions secret `GCP_SA_KEY` contains the deploy service account JSON key.
 - [ ] Deploy service account can push Artifact Registry images and deploy to GKE.
 - [ ] Secret Manager entries listed in `docs/deployment/environment-inventory.md` exist.
 - [ ] DuckDNS subdomain exists.

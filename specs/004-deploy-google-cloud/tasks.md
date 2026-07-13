@@ -22,7 +22,7 @@
 - [x] T002 [P] Create deployment overview and ownership notes in `docs/deployment/google-cloud.md`
 - [x] T003 [P] Create environment variable inventory from `.env.example` in `docs/deployment/environment-inventory.md`
 - [x] T004 [P] Create Artifact Registry image naming reference in `docs/deployment/artifact-registry.md`
-- [x] T005 [P] Create initial GitHub Actions workflow skeleton in `.github/workflows/deploy-gke.yml`
+- [x] T005 [P] Create initial GitHub Actions workflow skeleton in `.github/workflows/deploy.yml`
 - [x] T006 [P] Create Kustomize root placeholder in `deploy/k8s/base/kustomization.yaml`
 - [x] T007 [P] Create staging overlay placeholder in `deploy/k8s/overlays/staging/kustomization.yaml`
 - [x] T008 [P] Create production overlay placeholder in `deploy/k8s/overlays/production/kustomization.yaml`
@@ -124,18 +124,18 @@
 
 ### Implementation for User Story 3
 
-- [x] T059 [P] [US3] Add frontend lint/build job to `.github/workflows/deploy-gke.yml`
-- [x] T060 [P] [US3] Add backend uv/pytest job to `.github/workflows/deploy-gke.yml`
-- [x] T061 [US3] Add Google Cloud authentication via Workload Identity Federation to `.github/workflows/deploy-gke.yml`
-- [x] T062 [US3] Add Docker Buildx build matrix for frontend and backend service images to `.github/workflows/deploy-gke.yml`
-- [x] T063 [US3] Add Artifact Registry push step using commit-SHA tags to `.github/workflows/deploy-gke.yml`
-- [x] T064 [US3] Add Kustomize image replacement and staging apply steps to `.github/workflows/deploy-gke.yml`
-- [x] T065 [US3] Add rollout status checks for frontend, ingestion, auth, dashboard, notification, orchestration, inference-worker, realtime-stream, Redis, and Traefik to `.github/workflows/deploy-gke.yml`
-- [x] T066 [US3] Add smoke-test workflow step invoking `deploy/scripts/win/smoke-test.ps1` in `.github/workflows/deploy-gke.yml`
-- [x] T067 [US3] Add release-state artifact capture for deployed service SHAs in `.github/workflows/deploy-gke.yml`
+- [x] T059 [P] [US3] Add frontend lint/build job to `.github/workflows/deploy.yml`
+- [x] T060 [P] [US3] Add backend uv/pytest job to `.github/workflows/deploy.yml`
+- [x] T061 [US3] Add Google Cloud authentication via `GCP_SA_KEY` service account JSON secret to `.github/workflows/deploy.yml`
+- [x] T062 [US3] Add Docker Buildx build matrix for frontend and backend service images to `.github/workflows/deploy.yml`
+- [x] T063 [US3] Add Artifact Registry push step using commit-SHA tags to `.github/workflows/deploy.yml`
+- [x] T064 [US3] Add Kustomize image replacement and staging apply steps to `.github/workflows/deploy.yml`
+- [x] T065 [US3] Add rollout status checks for frontend, ingestion, auth, dashboard, notification, orchestration, inference-worker, realtime-stream, Redis, and Traefik to `.github/workflows/deploy.yml`
+- [x] T066 [US3] Add smoke-test workflow step invoking `deploy/scripts/win/smoke-test.ps1` in `.github/workflows/deploy.yml`
+- [x] T067 [US3] Add release-state artifact capture for deployed service SHAs in `.github/workflows/deploy.yml`
 - [x] T068 [P] [US3] Create release-state schema documentation in `docs/deployment/release-state.md`
 - [x] T069 [P] [US3] Create rollback script that redeploys a previous known-good SHA in `deploy/scripts/win/rollback.ps1`
-- [x] T070 [US3] Add manual workflow dispatch inputs for deploy, rollback, and smoke-test operations in `.github/workflows/deploy-gke.yml`
+- [x] T070 [US3] Add manual workflow dispatch inputs for deploy, rollback, and smoke-test operations in `.github/workflows/deploy.yml`
 - [x] T071 [US3] Create health inspection script for pod status, events, logs, and image SHAs in `deploy/scripts/win/inspect-health.ps1`
 - [x] T072 [US3] Document rollback and incident handling procedure in `docs/deployment/rollback-and-recovery.md`
 
@@ -243,8 +243,8 @@ Task: "T045 [P] [US2] Document required GitHub Actions variables and secrets in 
 ## Parallel Example: User Story 3
 
 ```text
-Task: "T059 [P] [US3] Add frontend lint/build job to .github/workflows/deploy-gke.yml"
-Task: "T060 [P] [US3] Add backend uv/pytest job to .github/workflows/deploy-gke.yml"
+Task: "T059 [P] [US3] Add frontend lint/build job to .github/workflows/deploy.yml"
+Task: "T060 [P] [US3] Add backend uv/pytest job to .github/workflows/deploy.yml"
 Task: "T069 [P] [US3] Create rollback script that redeploys a previous known-good SHA in deploy/scripts/win/rollback.ps1"
 Task: "T071 [US3] Create health inspection script for pod status, events, logs, and image SHAs in deploy/scripts/win/inspect-health.ps1"
 ```

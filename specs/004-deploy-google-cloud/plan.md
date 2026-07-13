@@ -105,7 +105,7 @@ deploy/
 
 .github/
 └── workflows/
-    └── deploy-gke.yml
+    └── deploy.yml
 ```
 
 **Structure Decision**: Add a new `deploy/` tree for Kubernetes/Kustomize deployment assets and helper scripts, leaving application code under the existing `backend/`, `frontend/`, and `supabase/` directories. Place the GitHub Actions workflow under `.github/workflows/` rather than the currently empty `.github/deploy.yml` file.

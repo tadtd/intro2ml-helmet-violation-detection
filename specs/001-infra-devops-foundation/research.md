@@ -65,7 +65,7 @@ auth/session use.
 
 **Rationale**: The feature must prepare production artifacts but explicitly
 excludes actual production deployment, DNS, TLS, and environment-specific
-provisioning. The CI/CD outline belongs at `.github/workflows/deploy-gke.yml`.
+provisioning. The CI/CD outline belongs at `.github/workflows/deploy.yml`.
 The existing `.github/deploy.yml` is currently empty/nonstandard and is not the
 workflow target.
 

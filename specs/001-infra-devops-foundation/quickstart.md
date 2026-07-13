@@ -93,12 +93,12 @@ Review planned production artifacts:
 ```powershell
 Get-ChildItem .\k8s
 Get-Content .\k8s\README.md
-Get-Content .\.github\workflows\deploy-gke.yml
+Get-Content .\.github\workflows\deploy.yml
 Get-Item .\.github\deploy.yml | Select-Object FullName,Length
 ```
 
 Expected result: `k8s/` exists after implementation and contains `README.md`
-plus manifests. `.github/workflows/deploy-gke.yml` contains the reviewable
+plus manifests. `.github/workflows/deploy.yml` contains the reviewable
 workflow outline. The existing `.github/deploy.yml` is empty/nonstandard and is
 not used as the target workflow. Manifests and workflow contain image
 placeholders, workload identity or documented secret placeholders, and no real

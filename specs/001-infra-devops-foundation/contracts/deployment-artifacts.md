@@ -19,7 +19,7 @@ GKE handoff artifacts.
 ## CI/CD Outline
 
 The GitHub Actions workflow outline must be created at
-`.github/workflows/deploy-gke.yml`. The existing `.github/deploy.yml` is
+`.github/workflows/deploy.yml`. The existing `.github/deploy.yml` is
 currently empty/nonstandard and is not the target workflow path.
 
 The workflow outline must cover:

@@ -163,7 +163,7 @@ Google Cloud deployment documentation and assets are located in:
 
 - [`docs/deployment/google-cloud.md`](docs/deployment/google-cloud.md) for the deployment scope, implementation order, owner checklist, and incident runbook.
 - [`deploy/k8s/`](deploy/k8s/) for the production-ready Kubernetes manifests managed with Kustomize.
-- [`.github/workflows/deploy-gke.yml`](.github/workflows/deploy-gke.yml) for the GKE deployment CI/CD workflow pipeline using Artifact Registry and Workload Identity.
+- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) for the GKE deployment CI/CD workflow pipeline using Artifact Registry and Workload Identity.
 - [`deploy/scripts/win/`](deploy/scripts/win/) for validation, setup, and smoke testing utilities.
 
 ## 🔒 Security Rules
