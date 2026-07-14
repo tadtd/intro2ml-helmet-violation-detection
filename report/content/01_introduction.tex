@@ -20,7 +20,7 @@ Sự phát triển của các mô hình phát hiện đối tượng (object det
 Phương pháp tiếp cận của đồ án được triển khai theo một quy trình gồm các giai đoạn chính (xem Hình~\ref{fig:pipeline-overview}):
 
 \begin{enumerate}
-    \item \textbf{Thu thập và gán nhãn dữ liệu:} Thu thập hình ảnh/video giao thông, thực hiện gán nhãn bán tự động bằng công cụ CVAT kết hợp mô hình Grounding DINO để tăng tốc quá trình tạo nhãn cho tập dữ liệu huấn luyện.
+    \item \textbf{Thu thập và gán nhãn dữ liệu:} Thu thập hình ảnh/video giao thông, thực hiện gán nhãn bán tự động bằng công cụ CVAT kết hợp mô hình Grounding DINO để tăng tốc quá trình tạo nhãn cho tập dữ liệu huấn luyện. Cuối cùng, nhóm kiểm tra thủ công toàn bộ nhãn bằng CVAT.
     \item \textbf{Tiền xử lý dữ liệu:} Làm sạch, chuẩn hóa và tăng cường dữ liệu (data augmentation) nhằm cải thiện khả năng tổng quát hóa của mô hình.
     \item \textbf{Huấn luyện mô hình:} Huấn luyện mô hình phát hiện đối tượng YOLOv8 trên tập dữ liệu đã xử lý, tinh chỉnh siêu tham số để tối ưu hiệu năng.
     \item \textbf{Xuất và tối ưu mô hình:} Chuyển đổi mô hình sang định dạng ONNX, sử dụng ONNX Runtime để tối ưu tốc độ suy luận khi triển khai.
@@ -28,9 +28,9 @@ Phương pháp tiếp cận của đồ án được triển khai theo một quy
     \item \textbf{Hiển thị và cảnh báo:} Kết quả phát hiện vi phạm được hiển thị qua giao diện dashboard, hỗ trợ quy trình xem xét và xác minh vi phạm.
 \end{enumerate}
 
-% \begin{figure}[h]
-%     \centering
-%     \includegraphics[width=0.9\textwidth]{images/pipeline_overview.png}
-%     \caption{Sơ đồ tổng quan quy trình xây dựng hệ thống phát hiện vi phạm mũ bảo hiểm}
-%     \label{fig:pipeline-overview}
-% \end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{img/pipeline_overview.png}
+    \caption{Sơ đồ tổng quan quy trình xây dựng hệ thống phát hiện vi phạm mũ bảo hiểm}
+    \label{fig:pipeline-overview}
+\end{figure}
