@@ -212,7 +212,6 @@ __marimo__/
 downloads/
 output/
 
-/report
 /data/*/
 notes/
 *.pth
