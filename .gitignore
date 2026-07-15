@@ -272,3 +272,4 @@ report/*.pdf
 *.snm
 *.nav
 *.synctex.gz
+*.minted
