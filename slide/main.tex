@@ -1,0 +1,41 @@
+\documentclass[aspectratio=169,xcolor=dvipsnames]{beamer}
+
+\usepackage{theme/beamerthemeSimpleDarkBlue}
+
+\usepackage{iftex}
+\ifPDFTeX
+    \usepackage[utf8]{inputenc}
+    \usepackage[T5]{fontenc}
+    \usepackage[vietnamese]{babel}
+\else
+    \usepackage{fontspec}
+\fi
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc}
+
+\graphicspath{{img/}{img/deep_learning/}}
+
+\title{Hệ thống phát hiện vi phạm không đội mũ bảo hiểm}
+\subtitle{Báo cáo kết quả huấn luyện mô hình}
+\author{Đỗ Tiến Đạt -- Lê Nhật Minh Tâm -- Triệu Tuấn Kiệt\\Nguyễn Đăng Khoa -- Huỳnh Mạnh Tường}
+\institute{Nhập môn học máy -- CSC14005\\Giảng viên hướng dẫn: Thầy Bùi Tiến Lên\\Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM}
+\date{\today}
+\titlegraphic{\includegraphics[height=1.15cm]{hcmus-logo.png}}
+
+\begin{document}
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\input{content/slides}
+
+\begin{frame}
+    \centering
+    \Huge Cảm ơn thầy và các bạn
+\end{frame}
+
+\end{document}
