@@ -165,10 +165,10 @@ export default function DashboardPage() {
     ].filter((slice) => slice.value > 0);
   }, [violations, tr, ts]);
 
-  // Accuracy = how many detections a human approved (confirmed) out of everything
-  // the model flagged: approved / total. Dismissed detections count against it.
-  const approvedCount = violations.filter((v) => v.verdict === 'confirmed').length;
-  const accuracyRate = violations.length ? (approvedCount / violations.length) * 100 : 0;
+  // Review-based precision for the operational dashboard:
+  // confirmed detections divided by all detections returned by the current filter.
+  const confirmedCount = violations.filter((v) => v.verdict === 'confirmed').length;
+  const accuracyRate = violations.length ? (confirmedCount / violations.length) * 100 : null;
 
   const videosWithViolations = new Set(violations.map((v) => v.video_id).filter(Boolean)).size;
 
@@ -245,7 +245,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t('accuracyRate')}</p>
             <h3 className="text-3xl font-extrabold text-white mt-1">
-              {violations.length ? `${accuracyRate.toFixed(1)}%` : '—'}
+              {accuracyRate === null ? '—' : `${accuracyRate.toFixed(1)}%`}
             </h3>
           </div>
         </div>
