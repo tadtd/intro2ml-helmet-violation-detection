@@ -44,6 +44,35 @@ def upload_video(content: bytes, filename: str, content_type: str | None) -> str
     )
 
 
+def _signed_url_from_response(response: object) -> str | None:
+    if isinstance(response, dict):
+        return (
+            response.get("signedURL")
+            or response.get("signedUrl")
+            or response.get("signed_url")
+        )
+
+    for attr in ("signed_url", "signedURL", "signedUrl"):
+        value = getattr(response, attr, None)
+        if value:
+            return str(value)
+
+    return None
+
+
+def _storage_object_key(stored: str, bucket_name: str) -> str:
+    """Return the object key inside a bucket from a key, bucket-prefixed path, or URL."""
+    marker = f"/{bucket_name}/"
+    if marker in stored:
+        return stored.split(marker, 1)[1].split("?", 1)[0]
+
+    prefix = f"{bucket_name}/"
+    if stored.startswith(prefix):
+        return stored[len(prefix):]
+
+    return stored
+
+
 def get_video_url(storage_path: str, expires_in: int = 3600) -> str:
     """Return a readable URL for an uploaded video.
 
@@ -51,12 +80,13 @@ def get_video_url(storage_path: str, expires_in: int = 3600) -> str:
     """
     try:
         settings = get_settings()
+        key = _storage_object_key(storage_path, settings.supabase_video_bucket)
         response = get_supabase_client().storage.from_(
             settings.supabase_video_bucket,
-        ).create_signed_url(storage_path, expires_in)
-        signed_url = response.get("signedURL") or response.get("signedUrl")
+        ).create_signed_url(key, expires_in)
+        signed_url = _signed_url_from_response(response)
         if not signed_url:
-            raise DBError(f"Signed URL missing from response for {storage_path}")
+            raise DBError(f"Signed URL missing from response for {key}")
         return str(signed_url)
     except DBError:
         raise
@@ -111,11 +141,11 @@ def sign_crop_url(stored: str, expires_in: int = 3600) -> str | None:
     if not stored:
         return None
     try:
-        key = _crop_object_key(stored)
+        key = _storage_object_key(_crop_object_key(stored), get_settings().supabase_storage_bucket)
         response = get_supabase_client().storage.from_(
             get_settings().supabase_storage_bucket,
         ).create_signed_url(key, expires_in)
-        return response.get("signedURL") or response.get("signedUrl")
+        return _signed_url_from_response(response)
     except Exception:
         return None
 

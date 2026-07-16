@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { AbstractIntlMessages } from 'next-intl';
 import { useWebSocketStatus } from '../hooks/useWebSocketStatus';
 import { createClient } from '../utils/supabase/client';
+import { useAuthStore, UserSession } from '../store/useAuthStore';
 
 interface AuthContextType {
   accessToken: string | null;
@@ -26,6 +27,49 @@ function BackendRealtimeBridge() {
   useWebSocketStatus();
   return null;
 }
+
+const getCookieValue = (name: string) => {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie
+    .split('; ')
+    .find((entry) => entry.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.split('=')[1] || '') : null;
+};
+
+const restoreAuthStoreSession = (session: {
+  access_token?: string;
+  user?: {
+    id: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  };
+} | null) => {
+  const authStore = useAuthStore.getState();
+  const user = session?.user;
+
+  if (!session?.access_token || !user) {
+    authStore.logout();
+    return;
+  }
+
+  const metadata = user.user_metadata || {};
+  const cookieRole = getCookieValue('user_role');
+  const metadataRole = typeof metadata.role === 'string' ? metadata.role : null;
+  const role = cookieRole === 'admin' || cookieRole === 'operator'
+    ? cookieRole
+    : metadataRole === 'admin' || metadataRole === 'operator'
+      ? metadataRole
+      : 'operator';
+  const fullName = typeof metadata.full_name === 'string' && metadata.full_name
+    ? metadata.full_name
+    : user.email?.split('@')[0] || 'Operator';
+
+  authStore.login({
+    userId: user.id,
+    fullName,
+    role,
+  } satisfies UserSession);
+};
 
 export default function Providers({
   children,
@@ -59,13 +103,17 @@ export default function Providers({
 
     supabase.auth
       .getSession()
-      .then(({ data }) => setAccessToken(data.session?.access_token ?? null))
+      .then(({ data }) => {
+        setAccessToken(data.session?.access_token ?? null);
+        restoreAuthStoreSession(data.session);
+      })
       .finally(() => setIsSessionRestored(true));
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setAccessToken(session?.access_token ?? null);
+      restoreAuthStoreSession(session);
     });
 
     return () => subscription.unsubscribe();

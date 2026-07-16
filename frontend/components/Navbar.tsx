@@ -8,6 +8,7 @@ import { LogOut, Globe, Shield, Video, UploadCloud, LayoutDashboard } from 'luci
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
+import { createClient } from '../utils/supabase/client';
 
 export default function Navbar() {
   const t = useTranslations('common');
@@ -17,15 +18,12 @@ export default function Navbar() {
   const router = useRouter();
   const locale = useLocale();
 
-  const handleLogout = () => {
-    // 1. Clear Zustand session
+  const handleLogout = async () => {
+    await createClient().auth.signOut();
     logout();
-    // 2. Clear in-memory token
     setAccessToken(null);
-    // 3. Expire cookies
     document.cookie = 'session_active=; Max-Age=0; path=/';
     document.cookie = 'user_role=; Max-Age=0; path=/';
-    // 4. Redirect
     router.push('/login');
   };
 
@@ -87,10 +85,11 @@ export default function Navbar() {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="p-2 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-2 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition cursor-pointer text-xs font-semibold"
                   title={t('logout')}
                 >
                   <LogOut className="w-4.5 h-4.5 text-rose-500" />
+                  <span className="hidden lg:inline">{t('logout')}</span>
                 </button>
               </div>
             )}
