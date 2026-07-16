@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Play, ShieldAlert, AlertCircle } from 'lucide-react';
+import { Play, RotateCcw, ShieldAlert, AlertCircle, Square } from 'lucide-react';
 
 interface DetectionReplayProps {
   src: string | null;
@@ -25,6 +25,11 @@ export default function DetectionReplay({ src, model = 'yolo' }: DetectionReplay
       socketRef.current = null;
     }
   }, []);
+
+  const stopPlayback = useCallback(() => {
+    stop();
+    setStatus('ended');
+  }, [stop]);
 
   const start = useCallback(() => {
     if (!src) return;
@@ -124,6 +129,27 @@ export default function DetectionReplay({ src, model = 'yolo' }: DetectionReplay
                 <ShieldAlert className="w-3.5 h-3.5" />
                 {stats.violations} vi phạm
               </span>
+            </div>
+            <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-2 rounded-lg bg-slate-950/75 border border-slate-800 px-3 py-2 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-[11px] text-slate-400">
+                Luồng AI được vẽ lên canvas. Dùng tab Video gốc để tua, tạm dừng hoặc xem bằng trình phát chuẩn.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={stopPlayback}
+                  className="flex items-center gap-1.5 rounded-md bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
+                >
+                  <Square className="h-3.5 w-3.5" />
+                  Dừng
+                </button>
+                <button
+                  onClick={start}
+                  className="flex items-center gap-1.5 rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-500"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Xem lại
+                </button>
+              </div>
             </div>
           </>
         )}
