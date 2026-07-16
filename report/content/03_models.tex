@@ -61,34 +61,34 @@ Dựa trên mục tiêu của hệ thống là phát hiện vi phạm từ ảnh
 
 YOLO là detector một giai đoạn, dự đoán trực tiếp bounding box và lớp đối tượng từ feature map mà không cần tách riêng bước proposal \cite{redmon2016you}. Pipeline YOLO gồm backbone để trích xuất đặc trưng, neck để hợp nhất đặc trưng đa tỉ lệ, và detection head để dự đoán bbox, class probability và phân phối bbox. Với bài toán hiện tại, kiến trúc này phù hợp vì xe máy và vùng đầu xuất hiện ở nhiều kích thước khác nhau trong ảnh giao thông.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.58\textwidth]{img/yolo_architecture.png}
-    \caption{Sơ đồ kiến trúc tổng quát của YOLO trong bài toán phát hiện mũ bảo hiểm.}
-    \label{fig:yolo-architecture-report}
-\end{figure}
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.58\textwidth]{img/yolo_architecture.png}
+%     \caption{Sơ đồ kiến trúc tổng quát của YOLO trong bài toán phát hiện mũ bảo hiểm.}
+%     \label{fig:yolo-architecture-report}
+% \end{figure}
 
 \subsubsection{Faster R-CNN}
 
 Faster R-CNN là detector hai giai đoạn \cite{ren2015faster}. Giai đoạn đầu dùng Region Proposal Network (RPN) để sinh các vùng có khả năng chứa đối tượng. Giai đoạn thứ hai dùng RoI Align/RoI head để phân loại proposal và tinh chỉnh tọa độ bbox. Mô hình sử dụng backbone ResNet50-FPN pretrained \cite{he2016deep}; FPN giúp mô hình khai thác đặc trưng ở nhiều tỉ lệ, hữu ích khi cần phát hiện cả xe máy lớn và vùng đầu nhỏ.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.58\textwidth]{img/fasterrcnn_architecture.png}
-    \caption{Sơ đồ kiến trúc Faster R-CNN với ResNet50-FPN.}
-    \label{fig:fasterrcnn-architecture-report}
-\end{figure}
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.58\textwidth]{img/fasterrcnn_architecture.png}
+%     \caption{Sơ đồ kiến trúc Faster R-CNN với ResNet50-FPN.}
+%     \label{fig:fasterrcnn-architecture-report}
+% \end{figure}
 
 \subsubsection{RT-DETR}
 
 RT-DETR là detector dựa trên transformer được thiết kế cho phát hiện đối tượng thời gian thực \cite{rtdetr}. Mô hình gồm backbone, hybrid encoder để hợp nhất đặc trưng đa tỉ lệ, transformer decoder để xử lý object queries và detection head để dự đoán class cùng bbox. Khác với YOLO, RT-DETR hướng tới dự đoán end-to-end bằng tập object queries, nhờ đó giảm phụ thuộc vào thiết kế anchor hoặc hậu xử lý phức tạp.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.58\textwidth]{img/rtdetr_architecture.png}
-    \caption{Sơ đồ kiến trúc RT-DETR dùng backbone, hybrid encoder và transformer decoder.}
-    \label{fig:rtdetr-architecture-report}
-\end{figure}
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.58\textwidth]{img/rtdetr_architecture.png}
+%     \caption{Sơ đồ kiến trúc RT-DETR dùng backbone, hybrid encoder và transformer decoder.}
+%     \label{fig:rtdetr-architecture-report}
+% \end{figure}
 
 \subsection{Cấu hình Huấn luyện}
 
