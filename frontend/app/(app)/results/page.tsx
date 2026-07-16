@@ -136,6 +136,7 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
 
     const seekVideo = () => {
       video.currentTime = pendingSeekTime;
+      video.pause();
       setCurrentTime(pendingSeekTime);
       setPendingSeekTime(null);
     };
