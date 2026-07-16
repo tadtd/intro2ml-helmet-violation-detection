@@ -250,6 +250,7 @@ supabase/.temp/
 github-key.json
 
 report/*.pdf
+slide/*.pdf
 *.aux
 *.bbl
 *.blg
