@@ -17,6 +17,7 @@ export interface ViolationOverlay {
 interface VideoPlayerWithOverlayProps {
   src?: string | null;
   violations: ViolationOverlay[];
+  unavailableMessage?: string;
   onTimeUpdate?: (time: number) => void;
   videoRef?: React.RefObject<HTMLVideoElement | null>;
 }
@@ -24,6 +25,7 @@ interface VideoPlayerWithOverlayProps {
 export default function VideoPlayerWithOverlay({
   src,
   violations,
+  unavailableMessage = 'Video source is not available yet.',
   onTimeUpdate,
   videoRef: externalVideoRef,
 }: VideoPlayerWithOverlayProps) {
@@ -159,7 +161,7 @@ export default function VideoPlayerWithOverlay({
   if (!src) {
     return (
       <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-2xl aspect-video border border-slate-800 flex items-center justify-center text-slate-500 text-sm">
-        Video source is not available yet.
+        {unavailableMessage}
       </div>
     );
   }

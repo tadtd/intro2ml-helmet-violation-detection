@@ -30,6 +30,15 @@ interface ViolationApiItem {
   imageUrl?: string | null;
 }
 
+interface VideoDetail {
+  id: string;
+  filename?: string | null;
+  modelUsed?: string | null;
+  storagePath?: string | null;
+  videoPlaybackStatus?: 'available' | 'missing_path' | 'signing_failed';
+  videoPlaybackError?: string | null;
+}
+
 export default function ResultsPage({ searchParams }: ResultsPageProps) {
   const { video_id } = use(searchParams);
   const t = useTranslations('results');
@@ -48,7 +57,7 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
     queryKey: ['video', video_id],
     queryFn: async () => {
       if (!video_id) return null;
-      return apiClient(`/api/v1/videos/${video_id}`, { token: accessToken });
+      return apiClient(`/api/v1/videos/${video_id}`, { token: accessToken }) as Promise<VideoDetail>;
     },
     enabled: !!video_id,
   });
@@ -97,6 +106,11 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
     ? selectedId
     : pendingViolations[0]?.id ?? null;
   const selectedViolation = pendingViolations.find((v) => v.id === activeSelectedId) ?? null;
+  const videoUnavailableMessage = videoData?.videoPlaybackStatus === 'signing_failed'
+    ? `Không thể tạo URL phát video từ Supabase Storage. ${videoData.videoPlaybackError ?? ''}`.trim()
+    : videoData?.videoPlaybackStatus === 'missing_path'
+      ? 'Bản ghi video chưa có đường dẫn storage_path.'
+      : 'Video source is not available yet.';
 
   return (
     <div className="flex flex-col space-y-6 p-6 text-white max-w-7xl mx-auto">
@@ -170,6 +184,7 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
             <VideoPlayerWithOverlay
               src={videoData?.storagePath ?? null}
               violations={violations}
+              unavailableMessage={videoUnavailableMessage}
               onTimeUpdate={setCurrentTime}
               videoRef={videoRef}
             />

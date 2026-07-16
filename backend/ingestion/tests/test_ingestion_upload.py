@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from common.config import Settings
+from common.db import DBError
 
 dummy_settings = Settings(
     supabase_jwt_secret="dummy-secret",
@@ -63,3 +64,56 @@ def test_upload_video(mock_decode, mock_send_task, mock_insert, mock_upload):
         },
         queue="inference"
     )
+
+
+@patch("ingestion.src.main.get_video_url")
+@patch("ingestion.src.main.get_video")
+@patch("ingestion.src.main.decode_supabase_jwt")
+def test_get_video_detail_returns_signed_playback_url(mock_decode, mock_get_video, mock_get_video_url):
+    mock_decode.return_value = {"sub": "user-123", "role": "operator"}
+    mock_get_video.return_value = {
+        "id": "video-456",
+        "user_id": "user-123",
+        "filename": "test.mp4",
+        "status": "done",
+        "model_used": "yolo",
+        "storage_path": "user-123/test.mp4",
+        "created_at": "2026-07-17T00:00:00Z",
+    }
+    mock_get_video_url.return_value = "https://signed.example/test.mp4"
+
+    response = client.get(
+        "/videos/video-456",
+        headers={"Authorization": "Bearer dummy-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["storagePath"] == "https://signed.example/test.mp4"
+    assert response.json()["videoPlaybackStatus"] == "available"
+
+
+@patch("ingestion.src.main.get_video_url")
+@patch("ingestion.src.main.get_video")
+@patch("ingestion.src.main.decode_supabase_jwt")
+def test_get_video_detail_reports_signing_failure(mock_decode, mock_get_video, mock_get_video_url):
+    mock_decode.return_value = {"sub": "user-123", "role": "operator"}
+    mock_get_video.return_value = {
+        "id": "video-456",
+        "user_id": "user-123",
+        "filename": "test.mp4",
+        "status": "done",
+        "model_used": "yolo",
+        "storage_path": "user-123/test.mp4",
+        "created_at": "2026-07-17T00:00:00Z",
+    }
+    mock_get_video_url.side_effect = DBError("Failed to sign video URL")
+
+    response = client.get(
+        "/videos/video-456",
+        headers={"Authorization": "Bearer dummy-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["storagePath"] is None
+    assert response.json()["videoPlaybackStatus"] == "signing_failed"
+    assert response.json()["videoPlaybackError"] == "Failed to sign video URL"

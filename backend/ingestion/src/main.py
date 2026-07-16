@@ -205,11 +205,17 @@ def get_video_detail(
 
     # The player needs a URL it can fetch, and the video bucket is private.
     storage_path = video.get("storage_path")
+    playback_status = "missing_path"
+    playback_error = None
     try:
         playback_url = get_video_url(storage_path) if storage_path else None
+        if playback_url:
+            playback_status = "available"
     except DBError as exc:
         logger.warning(f"Could not sign playback URL for {video_id}: {exc}")
         playback_url = None
+        playback_status = "signing_failed"
+        playback_error = str(exc)
 
     return {
         "id": video["id"],
@@ -217,6 +223,8 @@ def get_video_detail(
         "status": video.get("status"),
         "modelUsed": video.get("model_used"),
         "storagePath": playback_url,
+        "videoPlaybackStatus": playback_status,
+        "videoPlaybackError": playback_error,
         "createdAt": video.get("created_at"),
     }
 
