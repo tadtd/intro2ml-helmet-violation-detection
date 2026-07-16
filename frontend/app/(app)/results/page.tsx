@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, use, useMemo } from 'react';
+import React, { useState, useRef, use, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFilterStore } from '../../../store/useFilterStore';
 import { useAuthContext } from '../../providers';
@@ -51,6 +51,7 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [viewMode, setViewMode] = useState<'original' | 'detect'>('original');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingSeekTime, setPendingSeekTime] = useState<number | null>(null);
 
   // Fetch video details
   const { data: videoData } = useQuery({
@@ -111,6 +112,42 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
     : videoData?.videoPlaybackStatus === 'missing_path'
       ? 'Bản ghi video chưa có đường dẫn storage_path.'
       : 'Video source is not available yet.';
+
+  const selectViolation = (violation: ViolationOverlay, shouldSeek = false) => {
+    setSelectedId(violation.id);
+
+    if (!shouldSeek) {
+      return;
+    }
+
+    setViewMode('original');
+    setPendingSeekTime(violation.timestamp);
+  };
+
+  useEffect(() => {
+    if (pendingSeekTime === null) {
+      return;
+    }
+
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    const seekVideo = () => {
+      video.currentTime = pendingSeekTime;
+      setCurrentTime(pendingSeekTime);
+      setPendingSeekTime(null);
+    };
+
+    if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      seekVideo();
+      return;
+    }
+
+    video.addEventListener('loadedmetadata', seekVideo, { once: true });
+    return () => video.removeEventListener('loadedmetadata', seekVideo);
+  }, [pendingSeekTime, viewMode, videoData?.storagePath]);
 
   return (
     <div className="flex flex-col space-y-6 p-6 text-white max-w-7xl mx-auto">
@@ -197,7 +234,7 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
           <EvidenceGallery
             violations={pendingViolations}
             selectedId={activeSelectedId}
-            onSelect={(v) => setSelectedId(v.id)}
+            onSelect={(v) => selectViolation(v)}
           />
         </div>
 
@@ -208,7 +245,7 @@ export default function ResultsPage({ searchParams }: ResultsPageProps) {
               violations={pendingViolations}
               currentTime={currentTime}
               selectedId={selectedId}
-              onSelect={(v) => setSelectedId(v.id)}
+              onSelect={(v) => selectViolation(v, true)}
             />
           </div>
           <ViolationReview violation={selectedViolation} />
