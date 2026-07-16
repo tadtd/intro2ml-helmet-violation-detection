@@ -1,6 +1,9 @@
 import logging
 
-from src.retention import run_retention_check
+try:
+    from orchestration.src.retention import run_retention_check
+except ModuleNotFoundError:
+    from src.retention import run_retention_check
 
 
 def test_run_retention_check_keeps_uploaded_videos(caplog):
