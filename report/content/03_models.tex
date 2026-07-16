@@ -2,10 +2,129 @@
 \label{sec:models}
 
 \subsection{Chuẩn bị Dữ liệu cho Mô hình}
-\textit{Nêu rõ tỷ lệ chia các tập dữ liệu (Train/Validation/Test) và lý giải cơ sở lựa chọn tỷ lệ này. Tóm tắt ngắn gọn các bước tiền xử lý và tăng cường dữ liệu (data augmentation) cuối cùng được áp dụng trực tiếp cho mô hình.}
+
+Sau bước thu thập, làm sạch và chuẩn hóa dữ liệu ở Chương~\ref{sec:data}, toàn bộ dữ liệu được tổ chức theo định dạng COCO và được chia thành ba tập độc lập: train, validation và test. Tập train dùng để cập nhật trọng số mô hình, tập validation dùng để theo dõi quá trình học và chọn siêu tham số, còn tập test chỉ được sử dụng ở cuối để đánh giá khả năng tổng quát hóa.
+
+\begin{table}[H]
+    \centering
+    \scriptsize
+    \caption{Tỷ lệ chia dữ liệu dùng cho huấn luyện và đánh giá}
+    \label{tab:train-val-test-split}
+    \begin{tabularx}{\textwidth}{lrrrrrX}
+        \toprule
+        \textbf{Tập} & \textbf{Số ảnh} & \textbf{Tỷ lệ} & \textbf{motorbike} & \textbf{helmet} & \textbf{non-helmet} & \textbf{Vai trò} \\
+        \midrule
+        Train & 2309 & 70.0\% & 3408 & 6739 & 900 & Học đặc trưng và cập nhật trọng số mô hình. \\
+        Validation & 330 & 10.0\% & 906 & 450 & 533 & Chọn checkpoint, theo dõi overfitting và tinh chỉnh siêu tham số. \\
+        Test & 659 & 20.0\% & 467 & 1256 & 138 & Đánh giá cuối cùng trên dữ liệu không tham gia huấn luyện. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Tỷ lệ 70/10/20 được chọn để giữ phần lớn dữ liệu cho huấn luyện, đồng thời vẫn dành một tập test đủ lớn để đánh giá khách quan. Với bài toán phát hiện vi phạm không đội mũ bảo hiểm, dữ liệu có độ đa dạng cao về góc chụp, khoảng cách camera, ánh sáng và mật độ xe. Vì vậy, việc giữ riêng 20\% dữ liệu cho test giúp kết quả cuối phản ánh tốt hơn khả năng sử dụng mô hình trong bối cảnh thực tế.
+
+Các bước tiền xử lý cuối cùng trước khi đưa vào mô hình gồm:
+
+\begin{itemize}
+    \item Chuẩn hóa ảnh về kích thước đầu vào 640x640 để thống nhất giữa các mô hình.
+    \item Giữ annotation ở định dạng COCO cho Faster R-CNN; chuyển bounding box từ dạng \texttt{xywh} sang \texttt{xyxy} khi nạp vào PyTorch.
+    \item Với YOLO và RT-DETR, chuyển COCO annotation sang định dạng YOLO gồm \texttt{class\_id}, tâm bbox và kích thước bbox đã chuẩn hóa về khoảng $[0,1]$.
+    \item Chuyển class id từ COCO 1-indexed sang 0-indexed khi dùng pipeline Ultralytics.
+    \item Dùng train set đã gộp thêm pseudo-labels trong file \texttt{instances\_train\_merged.json} để tăng số lượng mẫu huấn luyện.
+\end{itemize}
+
+Trong quá trình huấn luyện, YOLO và RT-DETR dùng các phép tăng cường dữ liệu mặc định của Ultralytics như thay đổi màu HSV, dịch chuyển, co giãn, lật ngang và mosaic \cite{ultralytics}. Faster R-CNN được huấn luyện trực tiếp trên ảnh tensor và annotation gốc, không dùng augmentation mạnh để giữ pipeline baseline ổn định và dễ so sánh.
 
 \subsection{Lựa chọn và Kiến trúc Mô hình}
-\textit{Trình bày và so sánh chi tiết ít nhất 3 mô hình đã thử nghiệm (ví dụ: YOLOv8, YOLOv9, Faster R-CNN, SSD, v.v.). Lý giải rõ ràng nguyên nhân lựa chọn mô hình cuối cùng. Vẽ sơ đồ kiến trúc và mô tả chi tiết các tầng/khối thành phần cấu tạo đối với mô hình Deep Learning sử dụng.}
+
+Nhóm thử nghiệm ba hướng phát hiện đối tượng đại diện cho ba nhóm kiến trúc khác nhau: YOLO cho detector một giai đoạn, Faster R-CNN cho detector hai giai đoạn, và RT-DETR cho detector dựa trên transformer. Cách chọn này giúp so sánh được sự đánh đổi giữa tốc độ, độ chính xác và độ phức tạp mô hình.
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{So sánh ba mô hình đã thử nghiệm}
+    \label{tab:model-selection-overview}
+    \begin{tabularx}{\textwidth}{l l r X}
+        \toprule
+        \textbf{Mô hình} & \textbf{Nhóm kiến trúc} & \textbf{Số tham số} & \textbf{Lý do thử nghiệm} \\
+        \midrule
+        YOLO & One-stage detector & 21.78M & Tốc độ inference cao, phù hợp với hệ thống cần xử lý ảnh/video gần thời gian thực. \\
+        Faster R-CNN & Two-stage detector & 41.31M & Baseline mạnh về độ chính xác nhờ tách bước sinh vùng đề xuất và bước phân loại/tinh chỉnh bbox. \\
+        RT-DETR & Transformer detector & 32.81M & Hướng tiếp cận mới hơn, dùng object queries và encoder-decoder để giảm phụ thuộc vào các bước hậu xử lý thủ công. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Dựa trên mục tiêu của hệ thống là phát hiện vi phạm từ ảnh hoặc video giao thông, YOLO được chọn làm ứng viên triển khai chính vì có tốc độ cao nhất trong các mô hình đã thử nghiệm, trong khi vẫn giữ mAP@0.5 và recall ở mức sử dụng được. Faster R-CNN được dùng như baseline độ chính xác để kiểm tra giới hạn chất lượng phát hiện, còn RT-DETR được dùng để đánh giá hướng transformer end-to-end.
+
+\subsubsection{YOLO}
+
+YOLO là detector một giai đoạn, dự đoán trực tiếp bounding box và lớp đối tượng từ feature map mà không cần tách riêng bước proposal \cite{redmon2016you}. Pipeline YOLO gồm backbone để trích xuất đặc trưng, neck để hợp nhất đặc trưng đa tỉ lệ, và detection head để dự đoán bbox, class probability và phân phối bbox. Với bài toán hiện tại, kiến trúc này phù hợp vì xe máy và vùng đầu xuất hiện ở nhiều kích thước khác nhau trong ảnh giao thông.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.58\textwidth]{img/yolo_architecture.png}
+    \caption{Sơ đồ kiến trúc tổng quát của YOLO trong bài toán phát hiện mũ bảo hiểm.}
+    \label{fig:yolo-architecture-report}
+\end{figure}
+
+\subsubsection{Faster R-CNN}
+
+Faster R-CNN là detector hai giai đoạn \cite{ren2015faster}. Giai đoạn đầu dùng Region Proposal Network (RPN) để sinh các vùng có khả năng chứa đối tượng. Giai đoạn thứ hai dùng RoI Align/RoI head để phân loại proposal và tinh chỉnh tọa độ bbox. Mô hình sử dụng backbone ResNet50-FPN pretrained \cite{he2016deep}; FPN giúp mô hình khai thác đặc trưng ở nhiều tỉ lệ, hữu ích khi cần phát hiện cả xe máy lớn và vùng đầu nhỏ.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.58\textwidth]{img/fasterrcnn_architecture.png}
+    \caption{Sơ đồ kiến trúc Faster R-CNN với ResNet50-FPN.}
+    \label{fig:fasterrcnn-architecture-report}
+\end{figure}
+
+\subsubsection{RT-DETR}
+
+RT-DETR là detector dựa trên transformer được thiết kế cho phát hiện đối tượng thời gian thực \cite{rtdetr}. Mô hình gồm backbone, hybrid encoder để hợp nhất đặc trưng đa tỉ lệ, transformer decoder để xử lý object queries và detection head để dự đoán class cùng bbox. Khác với YOLO, RT-DETR hướng tới dự đoán end-to-end bằng tập object queries, nhờ đó giảm phụ thuộc vào thiết kế anchor hoặc hậu xử lý phức tạp.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.58\textwidth]{img/rtdetr_architecture.png}
+    \caption{Sơ đồ kiến trúc RT-DETR dùng backbone, hybrid encoder và transformer decoder.}
+    \label{fig:rtdetr-architecture-report}
+\end{figure}
 
 \subsection{Cấu hình Huấn luyện}
-\textit{Mô tả chi tiết thiết lập huấn luyện: hàm mất mát (loss function), thuật toán tối ưu (optimizer), các siêu tham số chính (learning rate, batch size, epochs,...). Trình bày phương pháp tinh chỉnh siêu tham số đã thực hiện (Grid Search, Random Search, Bayesian Optimization, v.v.).}
+
+Cả ba mô hình đều được huấn luyện từ trọng số pretrained để tận dụng đặc trưng thị giác đã học từ tập dữ liệu lớn. Việc fine-tune từ pretrained giúp giảm thời gian huấn luyện và phù hợp với kích thước dữ liệu của đồ án.
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Cấu hình huấn luyện chính của ba mô hình}
+    \label{tab:training-configs}
+    \begin{tabularx}{\textwidth}{l X X X}
+        \toprule
+        \textbf{Thành phần} & \textbf{YOLO} & \textbf{Faster R-CNN} & \textbf{RT-DETR} \\
+        \midrule
+        Checkpoint khởi tạo & \texttt{yolo26m.pt} pretrained & ResNet50-FPN pretrained & RT-DETR pretrained \\
+        Epochs & 50 & 50 & 40 \\
+        Batch size & 32 & 4 & 2 \\
+        Kích thước ảnh & 640x640 & 640x640 & 640x640 \\
+        Optimizer & Auto optimizer của Ultralytics & SGD, momentum 0.9 & AdamW \\
+        Learning rate & 0.000111 & 0.001799 & 0.000241 \\
+        Weight decay & 0.000124 & 0.0005 & 0.000139 \\
+        Loss chính & Box loss, classification loss, DFL loss & RPN objectness/bbox loss và ROI classification/bbox loss & GIoU loss, classification loss, L1 box loss \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Với YOLO, hàm mất mát gồm ba thành phần chính: box loss để tối ưu tọa độ bbox, classification loss để tối ưu nhãn lớp và Distribution Focal Loss (DFL) để cải thiện độ chính xác định vị bbox. Với Faster R-CNN, loss được tách theo hai giai đoạn: RPN loss cho objectness và regression của proposal, sau đó là ROI loss cho phân loại và tinh chỉnh bbox. Với RT-DETR, mô hình dùng tổ hợp GIoU loss, L1 box loss và classification loss để tối ưu đồng thời vị trí và lớp của object queries.
+
+Quá trình tinh chỉnh siêu tham số được thực hiện theo hai pha. Pha đầu sử dụng random search thông qua Ray Tune để thử nhiều tổ hợp learning rate, batch size, weight decay và hệ số suy giảm learning rate. Pha thứ hai dùng cấu hình tốt nhất trên validation set để train final model và lưu checkpoint tốt nhất.
+
+Cấu hình tốt nhất sau bước tinh chỉnh được tóm tắt như sau:
+
+\begin{itemize}
+    \item YOLO: learning rate 0.000111, batch size 32, LRF 0.177187 và weight decay 0.000124.
+    \item RT-DETR: learning rate 0.000241, batch size 2, LRF 0.032969, weight decay 0.000139 và optimizer AdamW.
+    \item Faster R-CNN: tinh chỉnh learning rate, batch size và weight decay quanh cấu hình SGD ổn định, sau đó chọn checkpoint dựa trên validation loss.
+\end{itemize}
+
+Các chỉ số validation được dùng để theo dõi quá trình học, còn chỉ số test chỉ được dùng sau cùng để so sánh mô hình. Cách tổ chức này giúp giảm nguy cơ chọn mô hình theo test set và đảm bảo kết quả ở Chương~\ref{sec:results} phản ánh tương đối khách quan hiệu năng của từng kiến trúc.
