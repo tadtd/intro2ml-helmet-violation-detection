@@ -2,7 +2,138 @@
 \label{sec:results}
 
 \subsection{Kết quả Thực nghiệm}
-\textit{Trình bày biểu đồ quá trình học (Learning Curves) của mô hình trên tập Train và Validation (Loss, mAP, v.v.) kèm phân tích và đánh giá. Báo cáo các chỉ số đánh giá cụ thể (Accuracy, Precision, Recall, F1-Score, mAP@0.5, mAP@0.5:0.95,...) thu được trên tập Test độc lập. Hiển thị hình ảnh ma trận nhầm lẫn (Confusion Matrix) và phân tích ý nghĩa của các chỉ số.}
+
+Sau khi huấn luyện, nhóm đánh giá ba mô hình trên cùng tập validation và test độc lập. Với bài toán object detection, các chỉ số chính được sử dụng gồm mAP@0.5, mAP@0.5:0.95, recall/AR và tốc độ inference. mAP@0.5 phản ánh khả năng phát hiện đúng ở ngưỡng IoU tương đối phổ biến, trong khi mAP@0.5:0.95 nghiêm ngặt hơn vì trung bình trên nhiều ngưỡng IoU. Do hệ thống hướng tới phát hiện vi phạm trong ảnh/video giao thông, recall/AR và FPS cũng được xem là các chỉ số quan trọng.
+
+\subsubsection{YOLO}
+
+YOLO được huấn luyện trong 50 epoch. Hình~\ref{fig:yolo-training-results} cho thấy train loss giảm ổn định, đặc biệt classification loss giảm mạnh ở giai đoạn đầu. Trên validation, mAP@0.5:0.95 đạt tốt nhất tại epoch 36 với giá trị 0.2121; cùng epoch này mAP@0.5 đạt 0.4037, precision đạt 0.4628 và recall đạt 0.5192. Sau epoch 36, metric validation dao động nhẹ, cho thấy mô hình đã gần đạt trạng thái hội tụ.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{img/results/yolo_results.png}
+    \caption{Learning curves và validation metrics của YOLO.}
+    \label{fig:yolo-training-results}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.48\textwidth]{img/results/yolo_confusion_matrix_normalized.png}
+    \includegraphics[width=0.48\textwidth]{img/results/yolo_pr_curve.png}
+    \caption{Confusion matrix chuẩn hóa và Precision-Recall curve của YOLO.}
+    \label{fig:yolo-confusion-pr}
+\end{figure}
+
+Trên test set, YOLO đạt mAP@0.5 là 0.78, mAP@0.5:0.95 là 0.54 và AR/Recall là 0.86. Đây là mô hình có tốc độ inference cao nhất trong ba mô hình, đạt 40 FPS. Kết quả này phù hợp với mục tiêu triển khai hệ thống xử lý ảnh/video, nơi tốc độ phản hồi là yếu tố quan trọng.
+
+\subsubsection{Faster R-CNN}
+
+Faster R-CNN được huấn luyện trong 50 epoch với backbone ResNet50-FPN. Vì thư mục kết quả Faster R-CNN không có sẵn biểu đồ, nhóm sinh lại các hình trong Hình~\ref{fig:faster-learning} từ file learning curve CSV và JSON kết quả. Train loss giảm từ 0.3576 ở epoch 1 xuống 0.0523 ở epoch 50, cho thấy mô hình học rất mạnh trên train set. Tuy nhiên validation loss thấp nhất ở epoch 2 với giá trị 0.8642 rồi tăng dần đến 1.5990 ở epoch 50. Đây là dấu hiệu overfitting rõ rệt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{img/results/fasterrcnn_learning_curves.pdf}
+    \caption{Learning curves và learning-rate schedule của Faster R-CNN được sinh từ số liệu huấn luyện.}
+    \label{fig:faster-learning}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.60\textwidth]{img/results/fasterrcnn_confusion_matrix_normalized.pdf}
+    \caption{Confusion matrix chuẩn hóa của Faster R-CNN trên test set.}
+    \label{fig:faster-confusion}
+\end{figure}
+
+Trên test set, Faster R-CNN đạt mAP@0.5 là 0.73 và mAP@0.5:0.95 là 0.50. Mô hình cũng đạt AR/Recall là 0.72 và tốc độ 12 FPS. Nếu xét bộ chỉ số phân loại tổng hợp, Faster R-CNN có precision 0.58, recall 0.72 và F1-score 0.64. Kết quả này cho thấy mô hình hai giai đoạn vẫn là baseline có chất lượng tốt, nhưng recall và tốc độ thấp hơn YOLO.
+
+\subsubsection{RT-DETR}
+
+RT-DETR được huấn luyện tiếp trong thư mục \texttt{rtdetr\_resume}. Hình~\ref{fig:rtdetr-training-results} cho thấy train GIoU loss và L1 loss giảm đều, chứng tỏ phần định vị bbox được cải thiện qua các epoch. Validation mAP@0.5:0.95 đạt tốt nhất ở epoch 39 với giá trị 0.1657; tại epoch này mAP@0.5 đạt 0.3141, precision đạt 0.3769 và recall đạt 0.4558.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{img/results/rtdetr_results.png}
+    \caption{Learning curves và validation metrics của RT-DETR trong lần huấn luyện resume.}
+    \label{fig:rtdetr-training-results}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.48\textwidth]{img/results/rtdetr_confusion_matrix_normalized.png}
+    \includegraphics[width=0.48\textwidth]{img/results/rtdetr_pr_curve.png}
+    \caption{Confusion matrix chuẩn hóa và Precision-Recall curve của RT-DETR.}
+    \label{fig:rtdetr-confusion-pr}
+\end{figure}
+
+Trên test set, checkpoint RT-DETR final đạt mAP@0.5 là 0.76, mAP@0.5:0.95 là 0.53 và AR/Recall là 0.84. Recall/AR của RT-DETR gần tương đương YOLO, cho thấy mô hình có khả năng tìm được nhiều đối tượng thật. Tuy nhiên FPS chỉ đạt 4 trong lần đo hiện tại, thấp hơn đáng kể so với YOLO và Faster R-CNN.
 
 \subsection{So sánh và Thảo luận}
-\textit{Thiết lập bảng so sánh hiệu năng chi tiết giữa các mô hình đã thử nghiệm. Phân tích hiện tượng Overfitting hoặc Underfitting (nếu có) xảy ra trong quá trình huấn luyện và các biện pháp đã áp dụng để khắc phục. Phân tích sâu sắc các trường hợp dự đoán sai điển hình (false positives, false negatives), đưa ra các giả thuyết và nguyên nhân cốt lõi gây ra lỗi (ví dụ: góc chụp khuất, điều kiện ánh sáng, kích thước vật thể nhỏ,...).}
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{So sánh hiệu năng ba mô hình trên test set}
+    \label{tab:test-comparison}
+    \begin{tabular}{lrrrr}
+        \toprule
+        \textbf{Mô hình} & \textbf{mAP@0.5} & \textbf{mAP@0.5:0.95} & \textbf{AR/Recall} & \textbf{FPS} \\
+        \midrule
+        YOLO & 0.78 & 0.54 & 0.86 & 40 \\
+        Faster R-CNN & 0.73 & 0.50 & 0.72 & 12 \\
+        RT-DETR & 0.76 & 0.53 & 0.84 & 4 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Precision, Recall và F1-score của ba mô hình trên test set}
+    \label{tab:classification-comparison}
+    \begin{tabular}{lrrr}
+        \toprule
+        \textbf{Mô hình} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} \\
+        \midrule
+        YOLO & 0.76 & 0.86 & 0.81 \\
+        Faster R-CNN & 0.58 & 0.72 & 0.64 \\
+        RT-DETR & 0.72 & 0.84 & 0.78 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{img/results/model_comparison.pdf}
+    \caption{So sánh mAP, recall/AR và FPS giữa ba mô hình trên test set.}
+    \label{fig:model-comparison-results}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{img/results/classification_metrics.pdf}
+    \caption{Precision, Recall và F1-score của ba mô hình trên test set.}
+    \label{fig:classification-comparison-results}
+\end{figure}
+
+Theo Bảng~\ref{tab:test-comparison}, YOLO đạt kết quả tổng thể tốt nhất: mAP@0.5, mAP@0.5:0.95 và AR/Recall đều cao nhất, đồng thời tốc độ inference cũng vượt trội với 40 FPS. RT-DETR bám rất sát YOLO về mAP và recall, nhưng tốc độ 4 FPS nên chưa phù hợp nếu yêu cầu xử lý thời gian thực. Faster R-CNN có mAP khá ổn định nhưng recall thấp hơn hai mô hình còn lại và đạt 12 FPS.
+
+Theo Bảng~\ref{tab:classification-comparison}, YOLO cũng có F1-score cao nhất với 0.81, nhờ cân bằng tốt giữa precision 0.76 và recall 0.86. RT-DETR đạt F1-score 0.78, gần với YOLO nhưng bị giới hạn bởi tốc độ inference. Faster R-CNN đạt F1-score 0.64, thấp hơn hai mô hình còn lại do precision và recall tổng hợp đều thấp hơn.
+
+\subsubsection{Phân tích overfitting và underfitting}
+
+YOLO có quá trình học ổn định nhất: train loss giảm đều và validation metric tăng dần trước khi dao động nhẹ ở cuối. Faster R-CNN có overfitting rõ nhất vì train loss tiếp tục giảm trong khi validation loss tăng sau epoch 2. RT-DETR nằm giữa hai trường hợp này: localization loss cải thiện, nhưng classification loss và validation metric vẫn dao động, cho thấy mô hình chưa thật sự ổn định trên các lớp nhỏ như \textit{helmet} và \textit{non-helmet}.
+
+Nguyên nhân chính có thể đến từ ba yếu tố. Thứ nhất, dữ liệu mất cân bằng lớp; \textit{helmet} xuất hiện nhiều hơn \textit{non-helmet}. Thứ hai, vùng đầu thường nhỏ, mờ hoặc bị che khuất, khiến mô hình khó phân biệt có mũ và không mũ. Thứ ba, một phần ảnh có góc nhìn xa hoặc mật độ xe cao, làm tăng khả năng bỏ sót và sinh bbox thừa.
+
+\subsubsection{Phân tích lỗi dự đoán}
+
+Các lỗi dự đoán thường gặp gồm:
+
+\begin{itemize}
+    \item \textbf{False negative}: mô hình bỏ sót vùng đầu nhỏ, người ở xa camera hoặc đối tượng bị che bởi xe/người khác.
+    \item \textbf{False positive}: mô hình sinh bbox trên nền hoặc trên các vùng giống mũ/đầu người. Faster R-CNN có nhiều false positive hơn, thể hiện qua precision thấp hơn recall.
+    \item \textbf{Nhầm lớp}: \textit{helmet} và \textit{non-helmet} dễ bị nhầm khi vùng đầu nhỏ, ảnh mờ, hoặc góc chụp từ sau/lệch bên.
+    \item \textbf{Sai localization}: bbox đôi khi bao chưa sát vùng đầu hoặc xe máy, đặc biệt khi đối tượng bị cắt ở rìa ảnh.
+\end{itemize}
+
+Tổng hợp lại, YOLO là mô hình phù hợp nhất cho triển khai nhờ độ chính xác tổng thể tốt nhất, recall cao và tốc độ 40 FPS. RT-DETR là hướng transformer có tiềm năng vì độ chính xác gần với YOLO, nhưng cần tối ưu thêm tốc độ. Faster R-CNN vẫn là baseline hai giai đoạn có chất lượng tốt, nhưng recall và FPS thấp hơn hai mô hình còn lại.
