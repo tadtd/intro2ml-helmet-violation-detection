@@ -117,7 +117,13 @@ Cả ba mô hình đều được huấn luyện từ trọng số pretrained đ
 
 Với YOLO, hàm mất mát gồm ba thành phần chính: box loss để tối ưu tọa độ bbox, classification loss để tối ưu nhãn lớp và Distribution Focal Loss (DFL) để cải thiện độ chính xác định vị bbox. Với Faster R-CNN, loss được tách theo hai giai đoạn: RPN loss cho objectness và regression của proposal, sau đó là ROI loss cho phân loại và tinh chỉnh bbox. Với RT-DETR, mô hình dùng tổ hợp GIoU loss, L1 box loss và classification loss để tối ưu đồng thời vị trí và lớp của object queries.
 
-Quá trình tinh chỉnh siêu tham số được thực hiện theo hai pha. Pha đầu sử dụng random search thông qua Ray Tune để thử nhiều tổ hợp learning rate, batch size, weight decay và hệ số suy giảm learning rate. Pha thứ hai dùng cấu hình tốt nhất trên validation set để train final model và lưu checkpoint tốt nhất.
+\subsubsection{Tinh chỉnh siêu tham số bằng Ray Tune}
+
+Nhóm dùng Ray Tune \cite{moritz2018ray} như bộ điều phối thí nghiệm cho ba mô hình trong file \texttt{models/raytune.py}. Quy trình gồm hai pha rõ ràng: pha 1 chạy nhiều trial trên tập validation để chọn siêu tham số, pha 2 huấn luyện lại mô hình từ đầu bằng cấu hình tốt nhất rồi mới đánh giá trên test set. Cách tách này giúp tránh dùng test set trong quá trình chọn mô hình.
+
+Mỗi trial là một lần gọi lại script huấn luyện tương ứng với một cấu hình được lấy mẫu ngẫu nhiên từ search space. Các tham số được tinh chỉnh gồm learning rate theo phân phối log-uniform, batch size theo tập giá trị rời rạc, weight decay theo log-uniform và hệ số suy giảm learning rate. Với YOLO và RT-DETR, tiêu chí chọn cấu hình là tối đa hóa \texttt{val\_mAP50\_95}; với Faster R-CNN, tiêu chí chính là tối thiểu hóa \texttt{val\_loss}. Khi có GPU, Ray cấp 1 GPU cho mỗi trial và xếp hàng các trial còn lại theo giới hạn \texttt{max\_concurrent}.
+
+Về cơ chế bên dưới, Ray Tune quản lý vòng đời trial, lưu kết quả từng cấu hình và chọn trial tốt nhất theo metric đã khai báo. Riêng Faster R-CNN báo \texttt{val\_loss} sau từng epoch nên nhóm dùng ASHA scheduler \cite{li2020asha}. ASHA là biến thể bất đồng bộ của Successive Halving: các cấu hình được chạy trước với ngân sách nhỏ, sau mỗi mức ngân sách sẽ so sánh metric; trial yếu bị dừng sớm, còn trial tốt được giữ lại để dùng thêm epoch. Nhờ đó tài nguyên huấn luyện được tập trung cho các cấu hình hứa hẹn thay vì chạy đầy đủ mọi trial.
 
 Cấu hình tốt nhất sau bước tinh chỉnh được tóm tắt như sau:
 
