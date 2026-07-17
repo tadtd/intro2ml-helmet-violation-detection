@@ -1,17 +1,179 @@
 \section{Kết quả}
 
-\begin{frame}{Learning curves}
-\vfill
+% ── Slide 1: Learning curves ──────────────────────────────────────────────────
+\begin{frame}{Learning curves -- Tóm tắt}
+
+\begin{columns}[T]
+\begin{column}{0.32\textwidth}
+  \textbf{YOLO} (50 epochs)
+  \begin{itemize}\small
+    \item Train loss giảm ổn định
+    \item Best: \textbf{epoch 36}
+    \item mAP@0.5 = 0.40 (val)
+    \item Recall = 0.52 (val)
+  \end{itemize}
+\end{column}
+\begin{column}{0.32\textwidth}
+  \textbf{RT-DETR} (40 epochs)
+  \begin{itemize}\small
+    \item GIoU \& L1 giảm đều
+    \item Best: \textbf{epoch 39}
+    \item mAP@0.5 = 0.31 (val)
+    \item Recall = 0.46 (val)
+  \end{itemize}
+\end{column}
+\begin{column}{0.32\textwidth}
+  \textbf{Faster R-CNN} (50 epochs)
+  \begin{itemize}\small
+    \item Train loss 0.36 $\to$ 0.05
+    \item Val loss $\uparrow$ sau epoch 2
+    \item $\Rightarrow$ \textbf{Overfitting rõ}
+  \end{itemize}
+  \vspace{0.3em}
+  \begin{alertblock}{}\scriptsize
+    YOLO ổn định nhất.\\F-RCNN overfit rõ nhất.
+  \end{alertblock}
+\end{column}
+\end{columns}
+
 \end{frame}
 
+% ── Slide 2: Chỉ số test ─────────────────────────────────────────────────────
 \begin{frame}{Chỉ số đánh giá trên tập Test}
-\vfill
+
+\begin{table}
+\small
+\begin{tabular}{lrrrr}
+  \toprule
+  \textbf{Mô hình} & \textbf{mAP@0.5} & \textbf{mAP@.5:.95} & \textbf{Recall} & \textbf{FPS} \\
+  \midrule
+  \textbf{YOLO}    & \textbf{0.78} & \textbf{0.54} & \textbf{0.86} & \textbf{40} \\
+  Faster R-CNN     & 0.73          & 0.50          & 0.72          & 12 \\
+  RT-DETR          & 0.76          & 0.53          & 0.84          & 4  \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.3em}
+
+\begin{table}
+\small
+\begin{tabular}{lrrr}
+  \toprule
+  \textbf{Mô hình} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
+  \midrule
+  \textbf{YOLO}    & 0.76 & \textbf{0.86} & \textbf{0.81} \\
+  Faster R-CNN     & 0.58 & 0.72          & 0.64 \\
+  RT-DETR          & 0.72 & 0.84          & 0.78 \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.3em}
+\begin{block}{Kết luận}
+  \textbf{YOLO} dẫn đầu mọi chỉ số và đạt 40 FPS $\Rightarrow$ phù hợp nhất triển khai thực tế.
+\end{block}
+
 \end{frame}
 
-\begin{frame}{Confusion matrix}
-\vfill
+% ── Slide 3: Confusion matrix ─────────────────────────────────────────────────
+\begin{frame}{Confusion matrix -- So sánh 3 mô hình}
+
+\begin{columns}[T]
+\begin{column}{0.33\textwidth}
+  \centering
+  \textbf{YOLO}\\[0.3em]
+  \includegraphics[width=\textwidth]{yolo_confusion_matrix_normalized.png}
+\end{column}
+\begin{column}{0.33\textwidth}
+  \centering
+  \textbf{RT-DETR}\\[0.3em]
+  \includegraphics[width=\textwidth]{rtdetr_confusion_matrix_normalized.png}
+\end{column}
+\begin{column}{0.33\textwidth}
+  \centering
+  \textbf{Faster R-CNN}\\[0.3em]
+  \includegraphics[width=\textwidth]{fasterrcnn_confusion_matrix_normalized.pdf}
+\end{column}
+\end{columns}
+
+\vspace{0.4em}
+\begin{itemize}
+  \item Cả 3 dễ nhầm \textit{helmet} $\leftrightarrow$ \textit{non-helmet} khi vùng đầu nhỏ/mờ
+  \item Faster R-CNN nhiều false positive hơn (precision thấp)
+  \item YOLO cân bằng FP và FN tốt nhất
+\end{itemize}
+
 \end{frame}
 
-\begin{frame}{So sánh mô hình và phân tích lỗi}
-\vfill
+% ── Slide 4: Phân tích lỗi ────────────────────────────────────────────────────
+\begin{frame}{Phân tích lỗi và overfitting}
+
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \textbf{Overfitting}
+  \begin{itemize}
+    \item \textbf{YOLO}: ổn định, hội tụ tốt
+    \item \textbf{Faster R-CNN}: overfit rõ sau epoch 2
+    \item \textbf{RT-DETR}: dao động, chưa ổn định
+  \end{itemize}
+  \vspace{0.4em}
+  \textbf{Nguyên nhân}
+  \begin{itemize}
+    \item Mất cân bằng: \textit{helmet} $\gg$ \textit{non-helmet}
+    \item Vùng đầu nhỏ, bị che, ảnh xa
+  \end{itemize}
+\end{column}
+\begin{column}{0.47\textwidth}
+  \textbf{Lỗi thường gặp}
+  \begin{itemize}
+    \item \textbf{FN}: bỏ sót vùng đầu nhỏ hoặc bị che
+    \item \textbf{FP}: bbox thừa trên vùng giống mũ
+    \item \textbf{Nhầm lớp}: helmet $\leftrightarrow$ non-helmet
+    \item \textbf{Sai bbox}: chưa sát đối tượng rìa ảnh
+  \end{itemize}
+  \vspace{0.4em}
+  \begin{block}{Tổng kết}
+    YOLO $\to$ triển khai\\
+    RT-DETR $\to$ cần tối ưu tốc độ\\
+    Faster R-CNN $\to$ baseline, FPS thấp
+  \end{block}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── Slide 5: Ví dụ dự đoán sai điển hình ─────────────────────────────────────
+\begin{frame}{Ví dụ dự đoán sai điển hình}
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+  \begin{block}{Trường hợp 1 -- False Negative}
+    \small Mô hình \textbf{bỏ sót} người không đội mũ bảo hiểm\\[0.3em]
+    \textbf{Điều kiện:}
+    \begin{itemize}\scriptsize
+      \item Người ở xa camera, vùng đầu $<$ 15px
+      \item Đối tượng bị xe/người khác che khuất một phần
+      \item Góc chụp từ trên xuống làm mờ đặc trưng mũ
+    \end{itemize}
+  \end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+  \begin{block}{Trường hợp 2 -- Nhầm lớp}
+    \small Mô hình \textbf{nhầm} \textit{non-helmet} thành \textit{helmet}\\[0.3em]
+    \textbf{Điều kiện:}
+    \begin{itemize}\scriptsize
+      \item Ảnh chụp từ góc lệch bên / phía sau
+      \item Tóc đen dày, đèn tối -- trông giống mũ bảo hiểm
+      \item Phân bố ít mẫu \textit{non-helmet} trong train set
+    \end{itemize}
+  \end{block}
+\end{column}
+\end{columns}
+
+\vspace{0.4em}
+\begin{alertblock}{Giả thuyết nguyên nhân chính}
+  \small Mất cân bằng lớp + vùng đầu nhỏ + thiếu đa dạng góc chụp khiến mô hình thiên về dự đoán \textit{helmet}.
+\end{alertblock}
+
 \end{frame}

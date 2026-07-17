@@ -1,95 +1,110 @@
 \section{Ứng dụng}
 
-% ── Slide 1: Kiến trúc hệ thống (có ảnh từ report) ──────────────────────────
+% ── Slide 1: Kiến trúc hệ thống ──────────────────────────────────────────────
 \begin{frame}{Kiến trúc hệ thống}
 
-\begin{figure}
-  \centering
-  \includegraphics[width=0.90\textwidth]{system_architecture.png}
-  \caption{Kiến trúc triển khai của hệ thống phát hiện vi phạm không đội mũ bảo hiểm}
-\end{figure}
+\centering
+\includegraphics[width=0.90\textwidth]{system_architecture.png}
 
 \end{frame}
 
-% ── Slide 2: Mô tả các thành phần (nội dung từ 05_deployment.tex) ───────────
+% ── Slide 2: Các thành phần hệ thống ─────────────────────────────────────────
 \begin{frame}{Các thành phần hệ thống}
 
 \begin{columns}[T]
-\begin{column}{0.5\textwidth}
-  \textbf{Luồng người dùng}
-  \begin{itemize}
-    \item Truy cập qua tên miền \textbf{DuckDNS} (HTTPS)
-    \item \textbf{Traefik} tiếp nhận và định tuyến yêu cầu
-    \item \textbf{Next.js} phục vụ giao diện web
-  \end{itemize}
-  \vspace{0.5em}
-  \textbf{Backend microservices}
-  \begin{itemize}
-    \item \textbf{Auth} -- xác thực, làm việc với Supabase Auth
-    \item \textbf{Ingestion} -- nhận dữ liệu đầu vào, lưu file và metadata vào Supabase
-    \item \textbf{Orchestration} -- tạo và quản lý tác vụ, đưa vào \textbf{Redis}
-    \item \textbf{Inference Worker} -- chạy mô hình phát hiện, ghi kết quả về Supabase
-    \item \textbf{Notification} -- đọc kết quả và cập nhật lại giao diện
+\begin{column}{0.52\textwidth}
+  \textbf{Luồng xử lý}
+  \begin{itemize}\small
+    \item \textbf{Traefik} -- gateway, TLS termination
+    \item \textbf{Next.js} -- giao diện web
+    \item \textbf{Auth} -- xác thực (Supabase Auth)
+    \item \textbf{Ingestion} -- nhận file, lưu metadata
+    \item \textbf{Orchestration} -- tạo tác vụ $\to$ Redis
+    \item \textbf{Inference Worker} -- chạy mô hình, ghi kết quả
+    \item \textbf{Notification} -- cập nhật giao diện
   \end{itemize}
 \end{column}
-\begin{column}{0.47\textwidth}
-  \textbf{Dịch vụ bên ngoài cụm}
-  \begin{itemize}
-    \item \textbf{Supabase:} cơ sở dữ liệu, xác thực, lưu trữ file, realtime
-  \end{itemize}
-  \vspace{0.5em}
-  \textbf{Dịch vụ trong cụm}
-  \begin{itemize}
-    \item \textbf{Redis} -- hàng đợi tác vụ và bộ nhớ đệm trung gian
-  \end{itemize}
-  \vspace{0.5em}
+\begin{column}{0.45\textwidth}
+  \begin{block}{Dịch vụ ngoài cụm}
+    \textbf{Supabase}: DB, Auth, Storage, Realtime
+  \end{block}
+  \vspace{0.3em}
+  \begin{block}{Dịch vụ trong cụm}
+    \textbf{Redis}: hàng đợi tác vụ, cache
+  \end{block}
+  \vspace{0.3em}
   \begin{block}{Thiết kế}
-    Tính toán và triển khai ứng dụng nằm trên \textbf{Google Cloud}; dữ liệu người dùng, file đầu vào và kết quả được quản lý tập trung bởi \textbf{Supabase}.
+    Tính toán trên \textbf{GKE}; dữ liệu quản lý bởi \textbf{Supabase}
   \end{block}
 \end{column}
 \end{columns}
 
 \end{frame}
 
-% ── Slide 3: Giao diện (chưa có ảnh) ────────────────────────────────────────
-\begin{frame}{Giao diện và chức năng}
-\vfill
-\end{frame}
-
-% ── Slide 4: Triển khai ứng dụng (nội dung từ 05_deployment.tex) ────────────
-\begin{frame}{Triển khai ứng dụng}
+% ── Slide 3: Screenshot giao diện ────────────────────────────────────────────
+\begin{frame}{Giao diện -- Dashboard \& Kết quả phát hiện}
 
 \begin{columns}[T]
 \begin{column}{0.5\textwidth}
-  \textbf{Hạ tầng Google Cloud}
+  \centering
+  \textbf{Dashboard tổng quan}\\[0.2em]
+  \includegraphics[width=\textwidth]{dashboard.png}
+\end{column}
+\begin{column}{0.5\textwidth}
+  \centering
+  \textbf{Kết quả phát hiện \& kiểm duyệt}\\[0.2em]
+  \includegraphics[width=\textwidth]{inference.png}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── Slide 4: Screenshot AI Detection ─────────────────────────────────────────
+\begin{frame}{Giao diện -- AI Detection Real-time}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{ai-detect-realtime.png}
+\end{column}
+\begin{column}{0.42\textwidth}
+  \textbf{Chức năng chính}\small
   \begin{itemize}
-    \item \textbf{GKE Autopilot} tại \texttt{asia-southeast1}
-    \item \textbf{Traefik} là điểm vào công khai duy nhất
-    \item \textbf{TLS} qua Let's Encrypt và cert-manager
-    \item Các dịch vụ nội bộ \textbf{không mở} ra Internet
+    \item \textbf{Đăng nhập} -- xác thực, phân quyền
+    \item \textbf{Dashboard} -- thống kê, xuất Excel/PDF
+    \item \textbf{Kết quả} -- video + timeline + ảnh minh chứng
+    \item \textbf{Kiểm duyệt} -- Phê duyệt / Bỏ qua
+    \item \textbf{AI Detection} -- bbox real-time, chỉnh ngưỡng
   \end{itemize}
-  \vspace{0.5em}
-  \begin{block}{Truy cập ứng dụng}
-    \centering
-    \href{https://dtdat-nthv.duckdns.org}{\texttt{dtdat-nthv.duckdns.org}}
-  \end{block}
+
+\end{column}
+\end{columns}
+
+\end{frame}
+
+
+% ── Slide 4: Triển khai ──────────────────────────────────────────────────────
+\begin{frame}{Triển khai trên Google Cloud}
+
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \textbf{Hạ tầng}
+  \begin{itemize}
+    \item \textbf{GKE Autopilot} -- \texttt{asia-southeast1}
+    \item \textbf{Traefik} -- điểm vào duy nhất
+    \item \textbf{TLS} -- Let's Encrypt + cert-manager
+    \item Dịch vụ nội bộ \textbf{không mở} Internet
+  \end{itemize}
+
 \end{column}
 \begin{column}{0.47\textwidth}
   \textbf{CI/CD Pipeline}
-  \begin{enumerate}
-    \item Lập trình viên push code lên \textbf{GitHub}
-    \item \textbf{GitHub Actions} được kích hoạt
-    \item Build Docker image, gắn nhãn theo \textbf{commit SHA}
-    \item Đưa image lên \textbf{Artifact Registry}
-    \item Cập nhật workload trên \textbf{GKE}
+  \begin{enumerate}\small
+    \item Push code $\to$ \textbf{GitHub}
+    \item \textbf{GitHub Actions} build Docker image
+    \item Đẩy lên \textbf{Artifact Registry}
+    \item Update workload trên \textbf{GKE}
   \end{enumerate}
-  \vspace{0.3em}
-  \textbf{Lựa chọn triển khai ban đầu}
-  \begin{itemize}
-    \item Supabase -- dịch vụ bên ngoài (DB, Auth, Storage, Realtime)
-    \item Redis -- trong cụm K8s (hàng đợi)
-    \item Một điểm vào công khai, hỗ trợ rollback qua CI/CD
-  \end{itemize}
 \end{column}
 \end{columns}
 

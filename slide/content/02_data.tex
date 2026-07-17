@@ -1,13 +1,110 @@
 \section{Dữ liệu}
 
-\begin{frame}{Nguồn dữ liệu và cách thu thập}
-\vfill
+% ── Slide 1: Nguồn dữ liệu ───────────────────────────────────────────────────
+\begin{frame}{Nguồn dữ liệu và gán nhãn}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+  \textbf{Thu thập}
+  \begin{itemize}
+    \item Tự quay video tại các nút giao đông đúc
+    \item Kết hợp một số dataset công khai
+  \end{itemize}
+  \vspace{0.4em}
+  \textbf{Gán nhãn (bán tự động)}
+  \begin{itemize}
+    \item \textbf{Grounding DINO} -- tạo nhãn sơ bộ nhanh
+    \item \textbf{CVAT} -- hiệu chỉnh \& kiểm tra thủ công
+    \item Lưu trữ theo chuẩn \textbf{COCO JSON}
+  \end{itemize}
+\end{column}
+\begin{column}{0.42\textwidth}
+  \begin{block}{3 lớp nhãn}
+    \begin{itemize}
+      \item \texttt{motorbike}
+      \item \texttt{helmet}
+      \item \texttt{non-helmet}
+    \end{itemize}
+  \end{block}
+\end{column}
+\end{columns}
+
 \end{frame}
 
-\begin{frame}{Tiền xử lý dữ liệu}
-\vfill
+% ── Slide 2: Tiền xử lý ──────────────────────────────────────────────────────
+\begin{frame}{Tiền xử lý và chia tập dữ liệu}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+  \textbf{Chia tập 70 / 10 / 20}
+
+  \vspace{0.3em}
+  \begin{table}
+  \scriptsize
+  \begin{tabular}{lrrr}
+    \toprule
+    \textbf{Tập} & \textbf{Ảnh} & \textbf{Tỷ lệ} & \textbf{Vai trò} \\
+    \midrule
+    Train      & 2309 & 70\% & Cập nhật trọng số \\
+    Validation & 330  & 10\% & Chọn checkpoint  \\
+    Test       & 659  & 20\% & Đánh giá cuối    \\
+    \bottomrule
+  \end{tabular}
+  \end{table}
+
+  \vspace{0.4em}
+  \textbf{Tiền xử lý chính}
+  \begin{itemize}
+    \item Resize ảnh về \textbf{640×640}
+    \item Chuyển COCO $\to$ định dạng YOLO
+    \item Bổ sung \textbf{pseudo-labels} vào train set
+  \end{itemize}
+\end{column}
+\begin{column}{0.42\textwidth}
+  \textbf{Augmentation}
+  \begin{itemize}
+    \item HSV shift, flip, scale, mosaic (YOLO \& RT-DETR)
+    \item Faster R-CNN: không augment mạnh
+  \end{itemize}
+  \vspace{0.4em}
+  \begin{alertblock}{Thách thức}
+    Mất cân bằng lớp:\\
+    \textit{helmet} $\gg$ \textit{non-helmet}
+  \end{alertblock}
+\end{column}
+\end{columns}
+
 \end{frame}
 
-\begin{frame}{Phân tích khám phá dữ liệu}
-\vfill
+% ── Slide 3: EDA ─────────────────────────────────────────────────────────────
+\begin{frame}{Phân tích dữ liệu (EDA)}
+
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \textbf{Phân bố nhãn}
+
+  \vspace{0.3em}
+  \begin{table}
+  \scriptsize
+  \begin{tabular}{lrr}
+    \toprule
+    \textbf{Lớp} & \textbf{Train} & \textbf{Val} \\
+    \midrule
+    motorbike  & 3408 & 906 \\
+    helmet     & 6739 & 450 \\
+    non-helmet &  900 & 533 \\
+    \bottomrule
+  \end{tabular}
+  \end{table}
+\end{column}
+\begin{column}{0.47\textwidth}
+  \textbf{Thách thức}
+  \begin{itemize}
+    \item Vùng đầu nhỏ, mờ, bị che khuất
+    \item Ánh sáng và góc chụp đa dạng
+    \item Mật độ xe cao, đối tượng bị cắt rìa
+  \end{itemize}
+\end{column}
+\end{columns}
+
 \end{frame}
