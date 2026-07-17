@@ -45,7 +45,7 @@
 \small
 \begin{tabular}{lrrrr}
   \toprule
-  \textbf{Mô hình} & \textbf{mAP@0.5} & \textbf{mAP@.5:.95} & \textbf{Recall} & \textbf{FPS} \\
+  \textbf{Mô hình} & \textbf{mAP@0.5} & \textbf{mAP@0.5:0.95} & \textbf{Recall} & \textbf{FPS} \\
   \midrule
   \textbf{YOLO}    & \textbf{0.78} & \textbf{0.54} & \textbf{0.86} & \textbf{40} \\
   Faster R-CNN     & 0.73          & 0.50          & 0.72          & 12 \\
@@ -144,36 +144,27 @@
 \end{frame}
 
 % ── Slide 5: Ví dụ dự đoán sai điển hình ─────────────────────────────────────
-\begin{frame}{Ví dụ dự đoán sai điển hình}
+\begin{frame}{Ví dụ lỗi 1 -- Vùng đầu nhỏ}
 
-\begin{columns}[T]
-\begin{column}{0.48\textwidth}
-  \begin{block}{Trường hợp 1 -- False Negative}
-    \small Mô hình \textbf{bỏ sót} người không đội mũ bảo hiểm\\[0.3em]
-    \textbf{Điều kiện:}
-    \begin{itemize}\scriptsize
-      \item Người ở xa camera, vùng đầu $<$ 15px
-      \item Đối tượng bị xe/người khác che khuất một phần
-      \item Góc chụp từ trên xuống làm mờ đặc trưng mũ
-    \end{itemize}
-  \end{block}
-\end{column}
-\begin{column}{0.48\textwidth}
-  \begin{block}{Trường hợp 2 -- Nhầm lớp}
-    \small Mô hình \textbf{nhầm} \textit{non-helmet} thành \textit{helmet}\\[0.3em]
-    \textbf{Điều kiện:}
-    \begin{itemize}\scriptsize
-      \item Ảnh chụp từ góc lệch bên / phía sau
-      \item Tóc đen dày, đèn tối -- trông giống mũ bảo hiểm
-      \item Phân bố ít mẫu \textit{non-helmet} trong train set
-    \end{itemize}
-  \end{block}
-\end{column}
-\end{columns}
+\centering
+\includegraphics[width=0.82\textwidth,height=0.62\textheight,keepaspectratio]{inference_error_1.png}
 
-\vspace{0.4em}
-\begin{alertblock}{Giả thuyết nguyên nhân chính}
-  \small Mất cân bằng lớp + vùng đầu nhỏ + thiếu đa dạng góc chụp khiến mô hình thiên về dự đoán \textit{helmet}.
+\vspace{0.2em}
+\begin{alertblock}{Nhận xét}
+  \scriptsize Các vùng đầu nhỏ và nằm gần nhau dễ tạo nhầm lẫn \textit{helmet} $\leftrightarrow$ \textit{non-helmet}; Faster R-CNN cũng có xu hướng giữ nhiều bbox/proposal hơn trên nền phức tạp.
+\end{alertblock}
+
+\end{frame}
+
+% ── Slide 6: Ví dụ dự đoán sai điển hình ─────────────────────────────────────
+\begin{frame}{Ví dụ lỗi 2 -- Đối tượng xa và che khuất}
+
+\centering
+\includegraphics[width=0.82\textwidth,height=0.62\textheight,keepaspectratio]{inference_error_2.png}
+
+\vspace{0.2em}
+\begin{alertblock}{Nhận xét}
+  \scriptsize Khi người/xe ở xa camera, vùng đầu bị che hoặc ánh sáng lệch, mô hình dễ bỏ sót bbox nhỏ và thiên về dự đoán lớp phổ biến hơn.
 \end{alertblock}
 
 \end{frame}
