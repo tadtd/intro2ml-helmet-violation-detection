@@ -1,13 +1,96 @@
 \section{Ứng dụng}
 
+% ── Slide 1: Kiến trúc hệ thống (có ảnh từ report) ──────────────────────────
 \begin{frame}{Kiến trúc hệ thống}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.90\textwidth]{system_architecture.png}
+  \caption{Kiến trúc triển khai của hệ thống phát hiện vi phạm không đội mũ bảo hiểm}
+\end{figure}
+
+\end{frame}
+
+% ── Slide 2: Mô tả các thành phần (nội dung từ 05_deployment.tex) ───────────
+\begin{frame}{Các thành phần hệ thống}
+
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \textbf{Luồng người dùng}
+  \begin{itemize}
+    \item Truy cập qua tên miền \textbf{DuckDNS} (HTTPS)
+    \item \textbf{Traefik} tiếp nhận và định tuyến yêu cầu
+    \item \textbf{Next.js} phục vụ giao diện web
+  \end{itemize}
+  \vspace{0.5em}
+  \textbf{Backend microservices}
+  \begin{itemize}
+    \item \textbf{Auth} -- xác thực, làm việc với Supabase Auth
+    \item \textbf{Ingestion} -- nhận dữ liệu đầu vào, lưu file và metadata vào Supabase
+    \item \textbf{Orchestration} -- tạo và quản lý tác vụ, đưa vào \textbf{Redis}
+    \item \textbf{Inference Worker} -- chạy mô hình phát hiện, ghi kết quả về Supabase
+    \item \textbf{Notification} -- đọc kết quả và cập nhật lại giao diện
+  \end{itemize}
+\end{column}
+\begin{column}{0.47\textwidth}
+  \textbf{Dịch vụ bên ngoài cụm}
+  \begin{itemize}
+    \item \textbf{Supabase:} cơ sở dữ liệu, xác thực, lưu trữ file, realtime
+  \end{itemize}
+  \vspace{0.5em}
+  \textbf{Dịch vụ trong cụm}
+  \begin{itemize}
+    \item \textbf{Redis} -- hàng đợi tác vụ và bộ nhớ đệm trung gian
+  \end{itemize}
+  \vspace{0.5em}
+  \begin{block}{Thiết kế}
+    Tính toán và triển khai ứng dụng nằm trên \textbf{Google Cloud}; dữ liệu người dùng, file đầu vào và kết quả được quản lý tập trung bởi \textbf{Supabase}.
+  \end{block}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── Slide 3: Giao diện (chưa có ảnh) ────────────────────────────────────────
+\begin{frame}{Giao diện và chức năng}
 \vfill
 \end{frame}
 
-\begin{frame}{Giao diện và demo}
-\vfill
-\end{frame}
-
+% ── Slide 4: Triển khai ứng dụng (nội dung từ 05_deployment.tex) ────────────
 \begin{frame}{Triển khai ứng dụng}
-\vfill
+
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \textbf{Hạ tầng Google Cloud}
+  \begin{itemize}
+    \item \textbf{GKE Autopilot} tại \texttt{asia-southeast1}
+    \item \textbf{Traefik} là điểm vào công khai duy nhất
+    \item \textbf{TLS} qua Let's Encrypt và cert-manager
+    \item Các dịch vụ nội bộ \textbf{không mở} ra Internet
+  \end{itemize}
+  \vspace{0.5em}
+  \begin{block}{Truy cập ứng dụng}
+    \centering
+    \href{https://dtdat-nthv.duckdns.org}{\texttt{dtdat-nthv.duckdns.org}}
+  \end{block}
+\end{column}
+\begin{column}{0.47\textwidth}
+  \textbf{CI/CD Pipeline}
+  \begin{enumerate}
+    \item Lập trình viên push code lên \textbf{GitHub}
+    \item \textbf{GitHub Actions} được kích hoạt
+    \item Build Docker image, gắn nhãn theo \textbf{commit SHA}
+    \item Đưa image lên \textbf{Artifact Registry}
+    \item Cập nhật workload trên \textbf{GKE}
+  \end{enumerate}
+  \vspace{0.3em}
+  \textbf{Lựa chọn triển khai ban đầu}
+  \begin{itemize}
+    \item Supabase -- dịch vụ bên ngoài (DB, Auth, Storage, Realtime)
+    \item Redis -- trong cụm K8s (hàng đợi)
+    \item Một điểm vào công khai, hỗ trợ rollback qua CI/CD
+  \end{itemize}
+\end{column}
+\end{columns}
+
 \end{frame}

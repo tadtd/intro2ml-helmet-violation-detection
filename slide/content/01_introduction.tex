@@ -1,9 +1,58 @@
 \section{Giới thiệu}
 
+% ── Slide 1: Bài toán ───────────────────────────────────────────────────────
 \begin{frame}{Bài toán và mục tiêu đồ án}
-\vfill
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+  \textbf{Vấn đề thực tiễn}
+  \begin{itemize}
+    \item Vi phạm không đội mũ bảo hiểm là nguyên nhân hàng đầu làm tăng mức độ nghiêm trọng của TNGT tại Việt Nam
+    \item Hiện tại: giám sát thủ công bởi CSGT hoặc rà soát camera $\Rightarrow$ tốn nhân lực, dễ bỏ sót
+  \end{itemize}
+  \vspace{0.5em}
+  \textbf{Mục tiêu đồ án}
+  \begin{itemize}
+    \item Xây dựng bộ dữ liệu ảnh giao thông có gán nhãn
+    \item Huấn luyện \textbf{YOLOv8} đạt độ chính xác phù hợp real-time
+    \item Tối ưu mô hình qua \textbf{ONNX Runtime}
+    \item Triển khai hệ thống microservices trên \textbf{GKE}
+  \end{itemize}
+\end{column}
+\begin{column}{0.42\textwidth}
+  \begin{block}{Giải pháp đề xuất}
+    Kết hợp camera giám sát sẵn có với mô hình Deep Learning để tự động phát hiện vi phạm, cung cấp minh chứng trực quan hỗ trợ xử phạt.
+  \end{block}
+\end{column}
+\end{columns}
+
 \end{frame}
 
+% ── Slide 2: Pipeline tổng quan ─────────────────────────────────────────────
 \begin{frame}{Tổng quan pipeline}
-\vfill
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.82\textwidth]{pipeline_overview.png}
+  \caption{Sơ đồ tổng quan quy trình xây dựng hệ thống}
+\end{figure}
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+  \begin{enumerate}
+    \item Thu thập \& gán nhãn (CVAT + Grounding DINO)
+    \item Tiền xử lý \& augmentation
+    \item Huấn luyện YOLOv8
+  \end{enumerate}
+\end{column}
+\begin{column}{0.48\textwidth}
+  \begin{enumerate}
+    \setcounter{enumi}{3}
+    \item Xuất ONNX \& tối ưu suy luận
+    \item Triển khai microservices (FastAPI, Celery, GKE)
+    \item Dashboard hiển thị vi phạm
+  \end{enumerate}
+\end{column}
+\end{columns}
+
 \end{frame}
