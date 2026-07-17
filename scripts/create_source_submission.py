@@ -41,7 +41,6 @@ EXCLUDED_DIR_NAMES = {
     ".nuxt",
     ".pytest_cache",
     ".ruff_cache",
-    ".specify",
     ".tox",
     ".venv",
     "__pycache__",
@@ -100,11 +99,6 @@ SECRET_FILE_PATTERNS = {
     ".env.*",
     "github-key.json",
     "kubeconfig*",
-}
-
-LOCAL_ASSISTANT_FILES = {
-    "AGENTS.md",
-    "CLAUDE.md",
 }
 
 MODEL_URL_FILES = [
@@ -197,9 +191,6 @@ def file_exclusion_reason(
 
     if matches_any(filename, GENERATED_FILE_PATTERNS):
         return "generated/cache file"
-
-    if filename in LOCAL_ASSISTANT_FILES:
-        return "local assistant instruction file"
 
     return None
 

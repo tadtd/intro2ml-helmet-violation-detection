@@ -249,3 +249,5 @@ supabase/.temp/
 
 # GitHub API keys
 github-key.json
+
+submission/
