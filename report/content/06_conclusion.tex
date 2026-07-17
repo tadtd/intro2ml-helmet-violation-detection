@@ -2,10 +2,25 @@
 \label{sec:conclusion}
 
 \subsection{Tóm tắt Kết quả}
-\textit{Tóm tắt các kết quả đạt được chính của đồ án so với các mục tiêu ban đầu đề ra ở Chương 1.}
+
+Đồ án đã hoàn thành một pipeline tương đối đầy đủ cho bài toán phát hiện vi phạm không đội mũ bảo hiểm từ ảnh, video tải lên và luồng camera mô phỏng thời gian thực. So với các mục tiêu ở Chương~\ref{sec:introduction}, nhóm đã xây dựng được bộ dữ liệu 3,298 ảnh với 14,797 annotation ở ba lớp \texttt{motorbike}, \texttt{helmet} và \texttt{non-helmet}; dữ liệu được chuẩn hóa về COCO, làm sạch bbox, khử trùng lặp và chia thành train/validation/test độc lập.
+
+Về mô hình, nhóm đã huấn luyện và so sánh ba kiến trúc phát hiện đối tượng: YOLO, Faster R-CNN và RT-DETR. Kết quả thực nghiệm ở Chương~\ref{sec:results} cho thấy YOLO là lựa chọn phù hợp nhất cho triển khai hiện tại, với mAP@0.5 đạt 0.78, mAP@0.5:0.95 đạt 0.54, AR/Recall đạt 0.86 và tốc độ khoảng 40 FPS trên thiết lập đo hiện tại. RT-DETR có độ chính xác gần với YOLO nhưng tốc độ thấp hơn đáng kể, còn Faster R-CNN đóng vai trò baseline hai giai đoạn có chất lượng ổn định nhưng kém hơn về recall và FPS.
+
+Về sản phẩm ứng dụng, nhóm đã tích hợp mô hình vào hệ thống web theo kiến trúc microservices. Hệ thống hỗ trợ đăng nhập, tải video, chọn mô hình suy luận, xử lý tác vụ bất đồng bộ bằng Celery/Redis, lưu metadata và ảnh minh chứng trên Supabase, hiển thị danh sách vi phạm, phê duyệt/bỏ qua phát hiện, xuất báo cáo và quan sát camera realtime qua WebSocket. Ứng dụng cũng đã có cấu hình triển khai cloud trên Google Kubernetes Engine với Traefik, cert-manager, Artifact Registry, Secret Manager và tên miền DuckDNS.
 
 \subsection{Hạn chế}
-\textit{Thẳng thắn nhìn nhận và chỉ ra các hạn chế kỹ thuật hiện tại của mô hình phát hiện vi phạm và hệ thống ứng dụng triển khai thực tiễn (ví dụ: tốc độ suy luận, khả năng nhận diện ban đêm, độ trễ khi stream video, v.v.).}
+
+Hạn chế lớn nhất của mô hình hiện tại đến từ dữ liệu. Lớp \texttt{non-helmet} còn ít hơn nhiều so với \texttt{helmet}, trong khi đây lại là lớp quan trọng nhất của bài toán. Ngoài ra, nhiều ảnh giao thông có vùng đầu rất nhỏ, bị che khuất, mờ chuyển động hoặc chụp từ góc xa, khiến mô hình dễ bỏ sót vi phạm hoặc nhầm giữa đội mũ và không đội mũ. Bộ dữ liệu cũng chưa bao phủ đầy đủ các điều kiện khó như ban đêm, mưa lớn, ngược sáng hoặc camera chất lượng thấp.
+
+Về thuật toán, phần xác định vi phạm sau detector vẫn dựa trên heuristic liên kết \texttt{non-helmet} với vùng người lái phía trên xe máy. Cách này đơn giản và dễ triển khai, nhưng chưa tận dụng đầy đủ thông tin thời gian trong video. Trong các cảnh đông xe, người đi bộ đứng gần xe máy hoặc nhiều xe chồng lấn, heuristic có thể ghép sai đối tượng hoặc tạo bằng chứng crop chưa tối ưu.
+
+Về triển khai, hệ thống hiện phù hợp cho demo và lưu lượng thấp hơn là vận hành quy mô lớn. Inference chủ yếu chạy CPU, RT-DETR còn chậm, realtime stream phải giảm tần suất suy luận theo frame để giữ giao diện phản hồi được. Cụm GKE hiện dùng số replica cố định, chưa bật autoscaling và chưa có cơ chế quan sát sâu cho chất lượng mô hình sau khi triển khai như drift monitoring, thống kê false positive/false negative theo thời gian hoặc cảnh báo khi model suy giảm.
 
 \subsection{Hướng phát triển}
-\textit{Đề xuất các ý tưởng, giải pháp cải tiến hiệu năng mô hình, nâng cấp các tính năng cho ứng dụng hoặc hướng phát triển mở rộng trong tương lai.}
+
+Trong giai đoạn tiếp theo, hướng ưu tiên là mở rộng và cân bằng dữ liệu. Nhóm có thể bổ sung ảnh/video ở nhiều điều kiện thời tiết, thời điểm trong ngày, góc camera và khu vực khác nhau; đồng thời tăng số mẫu \texttt{non-helmet} bằng active learning, hard negative mining và kiểm duyệt thêm các trường hợp mô hình dự đoán sai. Việc chuẩn hóa lại nhãn để phân biệt rõ vùng đầu, người lái và xe máy cũng sẽ giúp giảm lỗi ghép đối tượng.
+
+Về mô hình, có thể thử các biến thể YOLO mới hơn, fine-tune với augmentation phù hợp cho vật thể nhỏ, hiệu chỉnh ngưỡng confidence theo từng lớp và tối ưu ONNX bằng quantization hoặc TensorRT/OpenVINO. Với video, hệ thống nên kết hợp tracking ổn định hơn như ByteTrack/DeepSORT và logic theo chuỗi frame để chỉ ghi nhận một vi phạm khi đối tượng xuất hiện liên tục, thay vì dựa chủ yếu trên phát hiện từng frame.
+
+Về ứng dụng, hệ thống có thể được nâng cấp theo hướng vận hành thực tế hơn: bổ sung hàng đợi kiểm duyệt nhiều người dùng, dashboard theo vị trí camera, thống kê chất lượng mô hình theo thời gian, autoscaling cho inference worker, giám sát logs/metrics tập trung và quy trình rollback mô hình. Khi có nguồn camera thật, cần đánh giá thêm độ trễ end-to-end, tải hệ thống và tính ổn định của WebSocket để đảm bảo ứng dụng đáp ứng được môi trường giao thông thực tế.
