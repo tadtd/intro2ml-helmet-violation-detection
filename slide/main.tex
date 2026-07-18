@@ -26,10 +26,22 @@
 \date{\today}
 \titlegraphic{\includegraphics[height=1.15cm]{hcmus-logo.png}}
 
+% Before each section, show the outline with the upcoming section highlighted
+% and the others dimmed, so the audience knows where they are.
+\AtBeginSection[]{
+    \begin{frame}{Mục lục}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
+
 \begin{document}
 
 \begin{frame}
     \titlepage
+\end{frame}
+
+\begin{frame}{Nội dung}
+    \tableofcontents
 \end{frame}
 
 \input{content/slides}

@@ -1,46 +1,6 @@
 \section{Mô hình}
 
-% ── Slide 1: Chia tập ────────────────────────────────────────────────────────
-\begin{frame}{Chuẩn bị dữ liệu cho mô hình}
-
-\begin{columns}[T]
-\begin{column}{0.55\textwidth}
-  \begin{table}
-  \scriptsize
-  \begin{tabular}{lrrrr}
-    \toprule
-    \textbf{Tập} & \textbf{Ảnh} & \textbf{motorbike} & \textbf{helmet} & \textbf{non-helmet} \\
-    \midrule
-    Train      & 2309 & 3408 & 6739 & 900 \\
-    Validation &  330 &  906 &  450 & 533 \\
-    Test       &  659 &  467 & 1256 & 138 \\
-    \bottomrule
-  \end{tabular}
-  \end{table}
-  \vspace{0.4em}
-  \textbf{Tiền xử lý}
-  \begin{itemize}
-    \item Resize về 640×640
-    \item COCO $\to$ định dạng YOLO
-    \item Bổ sung pseudo-labels (train)
-  \end{itemize}
-\end{column}
-\begin{column}{0.42\textwidth}
-  \textbf{Augmentation}
-  \begin{itemize}
-    \item YOLO \& RT-DETR: HSV, mosaic, flip, scale
-    \item Faster R-CNN: không augment mạnh
-  \end{itemize}
-  \vspace{0.4em}
-  \begin{block}{Lý do 20\% test}
-    Dữ liệu đa dạng $\Rightarrow$ cần test đủ lớn để đánh giá khách quan
-  \end{block}
-\end{column}
-\end{columns}
-
-\end{frame}
-
-% ── Slide 2: So sánh 3 mô hình ───────────────────────────────────────────────
+% ── Slide 1: So sánh 3 mô hình ───────────────────────────────────────────────
 \begin{frame}{Các mô hình thử nghiệm}
 
 \begin{table}
