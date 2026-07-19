@@ -55,10 +55,10 @@ def test_process_video_pipeline(
     mock_upload_crop.return_value = "https://dummy.supabase.co/storage/v1/object/public/violations/crops/user1/vid_track.jpg"
     mock_insert_violation.return_value = "violation-111"
 
-    # Mock finding a violation
+    # Mock finding a violation: one motorbike carrying one bare-head rider.
     mock_violation = Violation(
         motorbike=Detection(class_name="motorbike", box=(100, 100, 200, 200), confidence=0.9),
-        non_helmet=Detection(class_name="non-helmet", box=(120, 120, 150, 150), confidence=0.8)
+        non_helmets=(Detection(class_name="non-helmet", box=(120, 60, 160, 160), confidence=0.8),),
     )
     mock_find_violations.return_value = [mock_violation]
 

@@ -15,7 +15,6 @@ from .models.registry import run_inference
 from .violation_logic import find_violations
 from .tracker import IoUTracker
 
-from .heuristics.crop import get_composite_union_box
 from .heuristics.motion import is_stationary
 
 logging.basicConfig(level=logging.INFO)
@@ -75,14 +74,26 @@ def process_video(
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         logger.info(f"Video metadata: {width}x{height} @ {fps} FPS, {total_frames} frames total")
 
-        tracker = IoUTracker(iou_threshold=0.3)
-        # A dedicated, lenient tracker for the bare-head boxes so the same rider
-        # keeps one id across sampled frames instead of fragmenting into many
-        # duplicate violations. Low IoU + long memory tolerate frame skipping.
-        nh_tracker = IoUTracker(iou_threshold=0.1, max_missed=30)
-        processed_tracks = set()
-        track_histories = {}  # track_id -> list of box coordinates
-        nh_histories = {}  # non-helmet track_id -> list of box coordinates
+        from .tracker import iou
+
+        # A single tracker follows each violation by its track_box — the primary
+        # rider's head expanded to the whole body. Tracking that (never the
+        # motorbike) keeps a rider on one identity whether or not its bike is
+        # detected in a given frame, so it does not fragment into a fresh crop each
+        # time the bike box flickers. The box is large, so it overlaps well between
+        # sampled frames even for a fast rider, and the tracker also matches on the
+        # predicted next position — together these keep one person on one track.
+        tracker = IoUTracker(iou_threshold=0.25, max_missed=10)
+        processed: set[str] = set()
+        histories: dict[str, list] = {}
+
+        def _match_track(box, tracks) -> int | None:
+            best_id, best_iou = None, 0.0
+            for track in tracks:
+                score = iou(box, track.box)
+                if score > best_iou:
+                    best_iou, best_id = score, track.track_id
+            return best_id
 
         frame_idx = 0
         while True:
@@ -90,113 +101,79 @@ def process_video(
             if not ret:
                 break
 
-            # Process every 5th frame to run faster in local CPU docker
-            if frame_idx % 5 != 0:
+            # Process every 3rd frame: dense enough to catch brief detections and
+            # keep tracking stable, still fast enough on local CPU.
+            if frame_idx % 3 != 0:
                 frame_idx += 1
                 continue
 
-            # Run ONNX or stub inference
             detections = run_inference(frame, model_name)
-            
-            # Map detections to tracker boxes
-            boxes = [det.box for det in detections]
-            tracks = tracker.update(boxes)
+            # One violation per motorbike, grouping every bare-head rider on it.
+            # A low floor drops only near-zero noise; real riders (even brief, blurry
+            # ones) reach well above it, and dedup — not the threshold — controls the
+            # count, so genuine violations are not filtered out.
+            violations = find_violations(detections, min_confidence=0.3)
 
-            # Record box history for each active track
-            for track in tracks:
-                if track.track_id not in track_histories:
-                    track_histories[track.track_id] = []
-                track_histories[track.track_id].append(track.box)
+            # Track every violation by its expanded-head box in one shared namespace.
+            anchors = [v.track_box() for v in violations]
+            tracks = tracker.update(anchors)
 
-            # Associate tracker IDs with detections
-            for det in detections:
-                for track in tracks:
-                    # check if the boxes match exactly or have high IoU
-                    from .tracker import iou
-                    if iou(det.box, track.box) > 0.9:
-                        det = Detection_with_track(det, track.track_id)
-                        break
+            for viol, anchor in zip(violations, anchors):
+                tid = _match_track(anchor, tracks)
+                key = f"v-{tid}" if tid is not None else f"x-{frame_idx}-{len(processed)}"
+                ref_box = anchor
 
-            # Find motorbike + non-helmet associations
-            violations = find_violations(detections)
-
-            # Track the bare-head boxes on their own so one rider maps to one id.
-            from .tracker import iou
-            nh_tracks = nh_tracker.update([viol.non_helmet.box for viol in violations])
-            for track in nh_tracks:
-                nh_histories.setdefault(track.track_id, []).append(track.box)
-
-            for viol in violations:
-                non_helmet = viol.non_helmet
-                # Dedup id = the head tracker's id for this box (best IoU match).
-                track_id = None
-                best_iou = 0.0
-                for track in nh_tracks:
-                    score = iou(non_helmet.box, track.box)
-                    if score > best_iou:
-                        best_iou = score
-                        track_id = track.track_id
-                if track_id is None:
-                    track_id = 900000 + len(processed_tracks)
-
-                # Skip a rider whose head has not moved (parked / standing).
-                if track_id in nh_histories:
-                    if is_stationary(nh_histories[track_id], threshold=5.0):
-                        logger.info(f"Skipping stationary head track {track_id}")
-                        continue
-
-                # One violation per rider, even across many sampled frames.
-                if track_id in processed_tracks:
+                # Skip a group parked in place (a stopped bike).
+                histories.setdefault(key, []).append(ref_box)
+                if is_stationary(histories[key], threshold=5.0):
+                    logger.info(f"Skipping stationary group {key}")
                     continue
-                processed_tracks.add(track_id)
 
-                # Crop the whole rider when a motorbike is matched, otherwise just
-                # the non-helmet detection (which already covers the person).
-                crop_box = viol.motorbike.box if viol.motorbike is not None else non_helmet.box
-                ux1, uy1, ux2, uy2 = get_composite_union_box(
-                    crop_box,
-                    non_helmet.box,
-                    width,
-                    height
-                )
+                # One record per group, even across many sampled frames.
+                if key in processed:
+                    continue
+                processed.add(key)
 
-                # Crop image
+                # Evidence crop = the whole bike and every rider on it (biggest box).
+                cx1, cy1, cx2, cy2 = viol.crop_box()
+                ux1, uy1 = max(0, int(cx1)), max(0, int(cy1))
+                ux2, uy2 = min(width, int(cx2)), min(height, int(cy2))
                 crop_img = frame[uy1:uy2, ux1:ux2]
                 if crop_img.size == 0:
                     continue
 
                 # Upload crop to Supabase Storage
-                crop_filename = f"crops/{user_id}/{video_id}_{track_id}.jpg"
+                crop_filename = f"crops/{user_id}/{video_id}_{key.replace('-', '_')}.jpg"
                 try:
                     crop_url = upload_crop(crop_img, crop_filename)
                 except Exception as exc:
-                    logger.error(f"Failed to upload crop for track {track_id}: {exc}")
+                    logger.error(f"Failed to upload crop for {key}: {exc}")
                     continue
 
                 # Insert violation record into Supabase DB
                 try:
                     video_offset = float(frame_idx) / fps
+                    track_int = abs(hash(key)) % 1_000_000
                     violation_id = insert_violation(
                         video_id=video_id,
                         user_id=user_id,
-                        track_id=track_id,
+                        track_id=track_int,
                         model_name=model_name,
                         image_url=crop_url,
-                        confidence=float(non_helmet.confidence),
+                        confidence=float(viol.confidence),
                         video_offset=video_offset,
                     )
-                    logger.info(f"Inserted violation {violation_id} for track {track_id}")
+                    logger.info(f"Inserted violation {violation_id} for {key}")
 
                     # Publish live violation notification to Redis pub-sub
                     if r_client:
-                        event_payload = {
+                        r_client.publish("violation_detected", json.dumps({
                             "violationId": violation_id,
                             "videoId": video_id,
-                            "timestamp": float(frame_idx) / fps,
-                            "confidence": float(non_helmet.confidence),
-                            "label": "non-helmet"
-                        }
-                        r_client.publish("violation_detected", json.dumps(event_payload))
+                            "timestamp": video_offset,
+                            "confidence": float(viol.confidence),
+                            "label": "non-helmet",
+                        }))
                 except Exception as exc:
                     logger.error(f"Failed to save violation: {exc}")
 

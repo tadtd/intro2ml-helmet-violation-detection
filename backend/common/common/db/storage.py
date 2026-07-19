@@ -136,8 +136,12 @@ def _crop_object_key(stored: str) -> str:
     return stored
 
 
-def sign_crop_url(stored: str, expires_in: int = 3600) -> str | None:
-    """Return a readable signed URL for a stored crop path (or legacy URL)."""
+def sign_crop_url(stored: str, expires_in: int = 604800) -> str | None:
+    """Return a readable signed URL for a stored crop path (or legacy URL).
+
+    The URL is valid for 7 days so evidence thumbnails do not expire mid-review:
+    a shorter window let an open results page go stale and show broken images.
+    """
     if not stored:
         return None
     try:

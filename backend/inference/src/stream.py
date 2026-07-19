@@ -156,9 +156,9 @@ async def _stream(websocket: WebSocket, source: str, model_name: str) -> None:
 
             if frame_idx % DETECT_EVERY == 0:
                 detections = await loop.run_in_executor(None, run_inference, frame, model_name)
-                violations = find_violations(detections)
-                # A violation may have no motorbike attached, so guard against None.
-                violation_boxes = {v.non_helmet.box for v in violations}
+                violations = find_violations(detections, min_confidence=0.3)
+                # Highlight every bare-head rider box plus the motorbike (if any).
+                violation_boxes = {h.box for v in violations for h in v.non_helmets}
                 violation_boxes |= {v.motorbike.box for v in violations if v.motorbike is not None}
                 await websocket.send_json(
                     {
