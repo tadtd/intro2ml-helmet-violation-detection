@@ -2,6 +2,8 @@
 
 An end-to-end traffic safety system for detecting motorcycle riders without helmets from uploaded videos and live camera streams. The project combines object detection models, asynchronous video processing, real-time WebSocket streaming, Supabase-backed audit storage, and a Next.js operator dashboard.
 
+> **Source code repository:** [https://github.com/tadtd/intro2ml-helmet-violation-detection](https://github.com/tadtd/intro2ml-helmet-violation-detection)
+
 Live deployment: [https://dtdat-nthv.duckdns.org/](https://dtdat-nthv.duckdns.org/)
 
 Project reports: [Google Drive report folder](https://drive.google.com/drive/folders/1Gsc2ARZR0iUiFUlZCpQ8hty4eD_0UUJA?usp=drive_link)
