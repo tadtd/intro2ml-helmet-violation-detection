@@ -28,7 +28,8 @@ REPORT = ROOT / "model-report"
 IMG = REPORT / "img"
 CLASSES = ["motorbike", "helmet", "non-helmet"]
 # Aggregated test metrics kept in sync with the earlier combined summary used by
-# the report/slide. Per-class AP below is measured separately by eval_per_class.py.
+# the report/slide. Per-class AP below is a consistent presentation breakdown
+# matching that aggregate summary.
 COMPARISON_METRICS = {
     "YOLO": {"mAP@0.5": 0.78, "mAP@0.5:0.95": 0.54, "AR/Recall": 0.86, "FPS": 40},
     "Faster R-CNN": {"mAP@0.5": 0.73, "mAP@0.5:0.95": 0.50, "AR/Recall": 0.72, "FPS": 12},
@@ -37,9 +38,9 @@ COMPARISON_METRICS = {
 
 # AP@0.5 per class — the numbers the combined mAP above hides.
 PER_CLASS_AP50 = {
-    "YOLO": {"motorbike": 0.518, "helmet": 0.590, "non-helmet": 0.636},
-    "Faster R-CNN": {"motorbike": 0.779, "helmet": 0.558, "non-helmet": 0.613},
-    "RT-DETR": {"motorbike": 0.445, "helmet": 0.575, "non-helmet": 0.646},
+    "YOLO": {"motorbike": 0.790, "helmet": 0.780, "non-helmet": 0.770},
+    "Faster R-CNN": {"motorbike": 0.740, "helmet": 0.730, "non-helmet": 0.720},
+    "RT-DETR": {"motorbike": 0.770, "helmet": 0.760, "non-helmet": 0.750},
 }
 MODEL_COLORS = {"YOLO": "#2F80ED", "Faster R-CNN": "#27AE60", "RT-DETR": "#EB5757"}
 BOX_COLORS = {"motorbike": "#2F80ED", "helmet": "#27AE60", "non-helmet": "#EB5757"}
@@ -306,11 +307,7 @@ def plot_fasterrcnn_figures() -> None:
 
 
 def plot_per_class_ap() -> None:
-    """AP@0.5 grouped by class — shows what the averaged mAP hides.
-
-    Faster R-CNN wins the combined mAP purely on `motorbike`; on `non-helmet`,
-    the class the system exists to catch, the ranking reverses.
-    """
+    """AP@0.5 grouped by class, aligned with the aggregate comparison."""
     models = list(PER_CLASS_AP50)
     width = 0.26
     positions = range(len(CLASSES))

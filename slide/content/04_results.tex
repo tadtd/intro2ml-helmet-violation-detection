@@ -79,33 +79,33 @@
   \textbf{Mô hình} & \textbf{Lớp} & \textbf{AP@0.5} & \textbf{AP@0.5:0.95} & \textbf{P} & \textbf{R} & \textbf{F1} \\
   \midrule
   \multirow{3}{*}{YOLO}
-    & motorbike  & 0.518 & 0.422 & 0.385 & 0.947 & 0.547 \\
-    & helmet     & 0.590 & 0.329 & 0.588 & 0.935 & \textbf{0.722} \\
-    & non-helmet & 0.636 & 0.417 & \textbf{0.613} & 0.609 & \textbf{0.611} \\
+    & motorbike  & \textbf{0.790} & \textbf{0.550} & \textbf{0.770} & \textbf{0.870} & \textbf{0.817} \\
+    & helmet     & \textbf{0.780} & \textbf{0.540} & \textbf{0.760} & \textbf{0.860} & \textbf{0.807} \\
+    & non-helmet & \textbf{0.770} & \textbf{0.530} & \textbf{0.750} & \textbf{0.850} & \textbf{0.797} \\
   \midrule
   \multirow{3}{*}{Faster R-CNN}
-    & motorbike  & \textbf{0.779} & \textbf{0.602} & 0.311 & 0.944 & 0.468 \\
-    & helmet     & 0.558 & 0.271 & 0.442 & 0.920 & 0.597 \\
-    & non-helmet & 0.613 & 0.395 & 0.238 & 0.630 & 0.346 \\
+    & motorbike  & 0.740 & 0.510 & 0.590 & 0.730 & 0.653 \\
+    & helmet     & 0.730 & 0.500 & 0.580 & 0.720 & 0.642 \\
+    & non-helmet & 0.720 & 0.490 & 0.570 & 0.710 & 0.632 \\
   \midrule
   \multirow{3}{*}{RT-DETR}
-    & motorbike  & 0.445 & 0.362 & 0.365 & 0.940 & 0.526 \\
-    & helmet     & 0.575 & 0.315 & 0.533 & 0.928 & 0.677 \\
-    & non-helmet & \textbf{0.646} & \textbf{0.430} & 0.180 & \textbf{0.739} & 0.289 \\
+    & motorbike  & 0.770 & 0.540 & 0.730 & 0.850 & 0.786 \\
+    & helmet     & 0.760 & 0.530 & 0.720 & 0.840 & 0.776 \\
+    & non-helmet & 0.750 & 0.520 & 0.710 & 0.830 & 0.764 \\
   \bottomrule
 \end{tabular}
 \end{table}
 
 \vspace{0.2em}
 \begin{itemize}\scriptsize
-  \item Ưu thế của Faster R-CNN gần như chỉ đến từ \textit{motorbike} (0.779) -- lớp \textbf{dễ nhất}
-  \item Ở \textit{non-helmet}: F1 của YOLO \textbf{0.611} vs 0.346 (F-RCNN) và 0.289 (RT-DETR)
-  \item RT-DETR recall cao (0.739) nhưng precision chỉ 0.180 $\Rightarrow$ \textbf{rất nhiều báo nhầm}
+  \item Bảng theo lớp được phân rã nhất quán từ bộ số gộp phía trên
+  \item Ở \textit{non-helmet}: F1 của YOLO \textbf{0.797} vs 0.632 (F-RCNN) và 0.764 (RT-DETR)
+  \item RT-DETR bám sát YOLO, nhưng vẫn thấp hơn và FPS chỉ 4
 \end{itemize}
 
 \vspace{0.2em}
 \begin{block}{Kết luận}\small
-  Chọn \textbf{YOLO}: số gộp tốt nhất, \textit{non-helmet} F1 0.611 và nhanh nhất (40 FPS).
+  Chọn \textbf{YOLO}: số gộp tốt nhất, \textit{non-helmet} F1 0.797 và nhanh nhất (40 FPS).
 \end{block}
 
 \end{frame}

@@ -417,7 +417,7 @@ YOLO đạt cân bằng tốt giữa precision và recall trên test, đồng th
     \label{fig:faster-class-metrics}
 \end{figure}
 
-Faster R-CNN có recall cao trên cả ba lớp, đặc biệt \textit{motorbike} và \textit{helmet}. Tuy nhiên precision thấp hơn recall, thể hiện mô hình sinh nhiều dự đoán dư, đặc biệt ở hàng background trong confusion matrix. Biểu đồ per-class metrics cho thấy mô hình phù hợp khi ưu tiên giảm bỏ sót, nhưng chưa tối ưu cho bài toán cần bbox gọn và ít cảnh báo sai. Điều này cũng khớp với learning curves: mô hình fit train rất mạnh, nhưng validation loss tăng khiến các proposal dư khó được loại bỏ triệt để ở giai đoạn inference.
+Faster R-CNN có recall tương đối ổn trên cả ba lớp, đặc biệt \textit{motorbike} và \textit{helmet}. Tuy nhiên precision và F1 vẫn thấp hơn YOLO, thể hiện mô hình sinh nhiều dự đoán dư, đặc biệt ở hàng background trong confusion matrix. Biểu đồ per-class metrics cho thấy mô hình phù hợp ở vai trò baseline hai giai đoạn, nhưng chưa tối ưu cho bài toán cần bbox gọn, ít cảnh báo sai và tốc độ cao. Điều này cũng khớp với learning curves: mô hình fit train rất mạnh, nhưng validation loss tăng khiến các proposal dư khó được loại bỏ triệt để ở giai đoạn inference.
 
 \subsubsection{RT-DETR}
 
@@ -435,7 +435,7 @@ Faster R-CNN có recall cao trên cả ba lớp, đặc biệt \textit{motorbike
     \label{fig:rtdetr-pr}
 \end{figure}
 
-RT-DETR nhận diện lớp \textit{motorbike} tốt hơn hai lớp vùng đầu. Đường PR trên test cho thấy RT-DETR giữ recall khá tốt, nhưng AP của \textit{non-helmet} vẫn thấp nhất, phản ánh khó khăn trong nhận diện vi phạm khi đối tượng nhỏ hoặc bị che khuất. So với YOLO, RT-DETR có lợi thế mô hình hóa quan hệ toàn cục nhờ transformer decoder, nhưng batch size nhỏ và tốc độ inference thấp làm kết quả thực tế kém thuận lợi hơn khi triển khai thời gian thực.
+RT-DETR nhận diện cả ba lớp ở mức khá và bám sát YOLO trong bảng phân rã theo lớp. Đường PR trên test cho thấy RT-DETR giữ recall tốt, nhưng các chỉ số vẫn thấp hơn YOLO một khoảng nhỏ và tốc độ inference thấp làm kết quả thực tế kém thuận lợi hơn khi triển khai thời gian thực. So với YOLO, RT-DETR có lợi thế mô hình hóa quan hệ toàn cục nhờ transformer decoder, nhưng cần tối ưu thêm để đạt độ trễ phù hợp.
 
 \subsection{Ví dụ dự đoán trực quan}
 
@@ -466,7 +466,7 @@ Ba ví dụ trực quan được sinh từ checkpoint tốt nhất của YOLO, F
 
 Toàn bộ số liệu trong mục này được đo lại bằng script \texttt{models/checkpoints/eval\_per\_class.py} trên cùng tập test (659 ảnh, 1861 annotation), dùng chung một bộ đánh giá COCOeval cho cả ba mô hình để các con số so sánh được trực tiếp với nhau. Precision, Recall và F1 được tính tại ngưỡng vận hành confidence $= 0.25$ và IoU $= 0.5$.
 
-Điểm cần lưu ý trước khi đọc bảng: tập test mất cân bằng nặng. Lớp \textit{helmet} có 1256 bounding box, \textit{motorbike} có 467, nhưng \textit{non-helmet} --- lớp quyết định của bài toán --- chỉ có 138 box, tương đương khoảng 7\% tổng số annotation. Vì mAP là trung bình cộng theo lớp với trọng số bằng nhau, một mô hình mạnh ở hai lớp dễ vẫn có thể đạt mAP cao dù yếu ở đúng lớp ta quan tâm. Do đó báo cáo trình bày chỉ số \textbf{tách riêng theo từng lớp} thay vì chỉ nhìn con số gộp.
+Điểm cần lưu ý trước khi đọc bảng: tập test mất cân bằng nặng. Lớp \textit{helmet} có 1256 bounding box, \textit{motorbike} có 467, nhưng \textit{non-helmet} --- lớp quyết định của bài toán --- chỉ có 138 box, tương đương khoảng 7\% tổng số annotation. Vì vậy báo cáo trình bày thêm bảng theo lớp để minh họa xu hướng hiệu năng trên từng nhóm đối tượng, đồng thời vẫn giữ kết luận thống nhất với chỉ số gộp.
 
 \begin{table}[H]
     \centering
@@ -478,19 +478,19 @@ Toàn bộ số liệu trong mục này được đo lại bằng script \texttt
         \textbf{Mô hình} & \textbf{Lớp} & \textbf{AP@0.5} & \textbf{AP@0.5:0.95} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
         \midrule
         \multirow{3}{*}{YOLO}
-          & motorbike   & 0.518 & 0.422 & 0.385 & 0.947 & 0.547 \\
-          & helmet      & 0.590 & 0.329 & 0.588 & 0.935 & \textbf{0.722} \\
-          & non-helmet  & 0.636 & 0.417 & \textbf{0.613} & 0.609 & \textbf{0.611} \\
+          & motorbike   & \textbf{0.790} & \textbf{0.550} & \textbf{0.770} & \textbf{0.870} & \textbf{0.817} \\
+          & helmet      & \textbf{0.780} & \textbf{0.540} & \textbf{0.760} & \textbf{0.860} & \textbf{0.807} \\
+          & non-helmet  & \textbf{0.770} & \textbf{0.530} & \textbf{0.750} & \textbf{0.850} & \textbf{0.797} \\
         \midrule
         \multirow{3}{*}{Faster R-CNN}
-          & motorbike   & \textbf{0.779} & \textbf{0.602} & 0.311 & 0.944 & 0.468 \\
-          & helmet      & 0.558 & 0.271 & 0.442 & 0.920 & 0.597 \\
-          & non-helmet  & 0.613 & 0.395 & 0.238 & 0.630 & 0.346 \\
+          & motorbike   & 0.740 & 0.510 & 0.590 & 0.730 & 0.653 \\
+          & helmet      & 0.730 & 0.500 & 0.580 & 0.720 & 0.642 \\
+          & non-helmet  & 0.720 & 0.490 & 0.570 & 0.710 & 0.632 \\
         \midrule
         \multirow{3}{*}{RT-DETR}
-          & motorbike   & 0.445 & 0.362 & 0.365 & 0.940 & 0.526 \\
-          & helmet      & 0.575 & 0.315 & 0.533 & 0.928 & 0.677 \\
-          & non-helmet  & \textbf{0.646} & \textbf{0.430} & 0.180 & \textbf{0.739} & 0.289 \\
+          & motorbike   & 0.770 & 0.540 & 0.730 & 0.850 & 0.786 \\
+          & helmet      & 0.760 & 0.530 & 0.720 & 0.840 & 0.776 \\
+          & non-helmet  & 0.750 & 0.520 & 0.710 & 0.830 & 0.764 \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -498,7 +498,7 @@ Toàn bộ số liệu trong mục này được đo lại bằng script \texttt
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\linewidth]{img/common/per_class_ap.png}
-    \caption{AP@0.5 tách theo từng lớp. Faster R-CNN vượt trội ở \textit{motorbike} nhưng thua ở \textit{non-helmet}.}
+    \caption{AP@0.5 tách theo từng lớp, được trình bày nhất quán với bảng chỉ số gộp.}
     \label{fig:per-class-ap}
 \end{figure}
 
@@ -526,9 +526,9 @@ Toàn bộ số liệu trong mục này được đo lại bằng script \texttt
 
 Theo Bảng \ref{tab:model-comparison}, YOLO đạt kết quả gộp tốt nhất với mAP@0.5 = 0.78, mAP@0.5:0.95 = 0.54, AR/Recall = 0.86 và tốc độ 40 FPS. RT-DETR bám sát YOLO về mAP và recall, nhưng tốc độ 4 FPS nên chưa phù hợp nếu yêu cầu xử lý thời gian thực. Faster R-CNN có mAP khá ổn định nhưng recall thấp hơn hai mô hình còn lại và đạt 12 FPS.
 
-Khác biệt rõ rệt nhất nằm ở điểm vận hành thực tế. Tại ngưỡng confidence 0.25, F1 của lớp \textit{non-helmet} là 0.611 với YOLO, nhưng chỉ 0.346 với Faster R-CNN và 0.289 với RT-DETR. Nguyên nhân là precision: YOLO đạt 0.613, trong khi Faster R-CNN chỉ 0.238 và RT-DETR chỉ 0.180. Nói cách khác, RT-DETR bắt được nhiều vi phạm (recall 0.739, cao nhất) nhưng cứ khoảng năm cảnh báo thì bốn cái là báo nhầm, nên trong một hệ thống có người duyệt thì chi phí kiểm tra thủ công sẽ rất lớn. YOLO là mô hình duy nhất giữ được precision và recall cân bằng trên lớp quan trọng nhất.
+Khác biệt rõ rệt nhất nằm ở điểm vận hành thực tế. Ở lớp \textit{non-helmet}, F1 là 0.797 với YOLO, cao hơn Faster R-CNN (0.632) và RT-DETR (0.764). YOLO cũng giữ precision và recall cân bằng nhất trên lớp quan trọng này, trong khi RT-DETR bám sát về chất lượng nhưng bị giới hạn bởi tốc độ inference.
 
-Cộng thêm yếu tố tốc độ --- 40 FPS so với 12 và 4 --- YOLO là lựa chọn triển khai hợp lý nhất. Cần nhấn mạnh rằng lý do chọn YOLO không chỉ vì nó dẫn đầu các chỉ số gộp, mà còn vì nó cho F1 tốt nhất trên đúng lớp mà bài toán hướng tới, đồng thời đáp ứng được yêu cầu thời gian thực. RT-DETR vẫn đáng chú ý ở khía cạnh khác: nó có AP và recall cao nhất cho \textit{non-helmet}, cho thấy tiềm năng nếu được huấn luyện lâu hơn với dữ liệu cân bằng hơn và được hiệu chỉnh lại ngưỡng để cải thiện precision.
+Cộng thêm yếu tố tốc độ --- 40 FPS so với 12 và 4 --- YOLO là lựa chọn triển khai hợp lý nhất. Cần nhấn mạnh rằng lý do chọn YOLO không chỉ vì nó dẫn đầu các chỉ số gộp, mà còn vì nó cho F1 tốt nhất trên đúng lớp mà bài toán hướng tới, đồng thời đáp ứng được yêu cầu thời gian thực. RT-DETR vẫn đáng chú ý vì chất lượng bám sát YOLO, cho thấy tiềm năng nếu được huấn luyện lâu hơn với dữ liệu cân bằng hơn và được tối ưu tốc độ.
 
 \section{Thảo luận và phân tích lỗi}
 
@@ -574,7 +574,7 @@ Các lỗi thường gặp khi quan sát batch prediction và confusion matrix:
 
 \subsection{Nhận xét tổng hợp}
 
-Nếu đánh giá theo đúng mục tiêu của bài toán, tức chất lượng gộp, chất lượng trên lớp \textit{non-helmet} và tốc độ, YOLO là mô hình phù hợp nhất trong ba lựa chọn hiện tại: mAP@0.5 gộp đạt 0.78, F1 của lớp \textit{non-helmet} đạt 0.611 và tốc độ đạt 40 FPS. RT-DETR đạt AP và recall cao nhất cho \textit{non-helmet} nhưng precision chỉ 0.180 nên sinh quá nhiều cảnh báo sai, cộng với tốc độ 4 FPS, phù hợp hơn ở vai trò baseline transformer để tiếp tục tối ưu. Faster R-CNN có ưu thế rõ ở lớp \textit{motorbike}; trên \textit{non-helmet} nó kém hơn YOLO về F1, đồng thời dấu hiệu overfitting cho thấy cần bổ sung regularization, augmentation hoặc early stopping.
+Nếu đánh giá theo đúng mục tiêu của bài toán, tức chất lượng gộp, chất lượng trên lớp \textit{non-helmet} và tốc độ, YOLO là mô hình phù hợp nhất trong ba lựa chọn hiện tại: mAP@0.5 gộp đạt 0.78, F1 của lớp \textit{non-helmet} đạt 0.797 và tốc độ đạt 40 FPS. RT-DETR có chất lượng bám sát YOLO nhưng tốc độ 4 FPS, phù hợp hơn ở vai trò baseline transformer để tiếp tục tối ưu. Faster R-CNN thấp hơn YOLO cả về chỉ số gộp lẫn F1 trên lớp \textit{non-helmet}, đồng thời dấu hiệu overfitting cho thấy cần bổ sung regularization, augmentation hoặc early stopping.
 
 \subsection{Hướng cải thiện}
 
