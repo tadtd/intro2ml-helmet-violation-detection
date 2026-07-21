@@ -1,0 +1,35 @@
+\section{Kết luận}
+
+\begin{frame}{Kết luận}
+
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \textbf{Kết quả đạt được}\footnotesize
+  \begin{itemize}
+    \item Dataset \textbf{3.298 ảnh}, 3 lớp nhãn (COCO)
+    \item So sánh: YOLO, Faster R-CNN, RT-DETR
+    \item \textbf{YOLO}: F1 \textit{non-helmet}=0.611, \textbf{36.4 FPS}
+    \item Hệ thống microservices trên \textbf{GKE Autopilot}
+    \item Dashboard: upload, kiểm duyệt, xuất báo cáo
+  \end{itemize}
+  \vspace{0.15em}
+  \textbf{Hạn chế}\footnotesize
+  \begin{itemize}
+    \item Mất cân bằng lớp (non-helmet $\ll$ helmet)
+    \item RT-DETR chỉ 2.8 FPS -- chưa phù hợp real-time
+    \item Chưa xử lý tốt ảnh tối, góc xa
+  \end{itemize}
+\end{column}
+\begin{column}{0.47\textwidth}
+  \textbf{Hướng phát triển}\footnotesize
+  \begin{itemize}
+    \item Tăng dữ liệu \textit{non-helmet}
+    \item Tối ưu RT-DETR (TensorRT, ONNX)
+    \item Hỗ trợ camera stream RTSP
+    \item Nhận diện ban đêm / thời tiết xấu
+    \item Tích hợp nhận diện biển số xe
+  \end{itemize}
+\end{column}
+\end{columns}
+
+\end{frame}

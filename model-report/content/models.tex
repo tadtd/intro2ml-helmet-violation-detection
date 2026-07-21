@@ -1,0 +1,591 @@
+\section{Dữ liệu và tiền xử lý}
+
+\subsection{Mô tả dữ liệu đầu vào}
+
+Cả ba mô hình YOLO, Faster R-CNN và RT-DETR dùng cùng một bộ dữ liệu đầu vào. Dữ liệu được lưu ở định dạng COCO với ba lớp:
+
+\begin{itemize}
+    \item \textit{motorbike}: xe máy hoặc vùng người điều khiển xe máy.
+    \item \textit{helmet}: vùng đầu có đội mũ bảo hiểm.
+    \item \textit{non-helmet}: vùng đầu không đội mũ bảo hiểm, tương ứng với vi phạm cần phát hiện.
+\end{itemize}
+
+Tập train hiện tại sử dụng file \texttt{instances\_train\_merged.json}, tức đã gộp annotation gốc với pseudo-labels. Validation và test lần lượt dùng \texttt{instances\_val.json} và \texttt{instances\_test.json}. Bộ dữ liệu đầy đủ được lưu tại \href{https://drive.google.com/drive/folders/1jA9XzUURPAWx9Cwcamh4V9tXWBrFJVt6?usp=drive_link}{Google Drive của nhóm}. Bảng \ref{tab:dataset-stats} trình bày số lượng ảnh và số lượng bounding boxes theo từng lớp.
+
+\begin{table}[H]
+    \centering
+    \caption{Thống kê dữ liệu dùng chung cho ba mô hình}
+    \label{tab:dataset-stats}
+    \begin{tabular}{lrrrrr}
+        \toprule
+        \textbf{Tập dữ liệu} & \textbf{Số ảnh} & \textbf{Tỷ lệ ảnh} & \textbf{motorbike} & \textbf{helmet} & \textbf{non-helmet} \\
+        \midrule
+        Train & 2309 & 70.0\% & 3408 & 6739 & 900 \\
+        Validation & 330 & 10.0\% & 906 & 450 & 533 \\
+        Test & 659 & 20.0\% & 467 & 1256 & 138 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Nhóm chọn tỷ lệ 70/10/20 để đảm bảo tập train đủ lớn cho quá trình học đặc trưng, trong khi vẫn giữ lại test set tương đối lớn nhằm đánh giá khách quan khả năng tổng quát hóa. Validation set chiếm 10\% và được dùng để chọn checkpoint, theo dõi overfitting và tinh chỉnh siêu tham số.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/common/dataset_distribution.png}
+    \caption{Phân bố số lượng ảnh theo split và số lượng bounding boxes theo lớp.}
+    \label{fig:dataset-distribution}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\linewidth]{img/common/dataset_sources.png}
+    \caption{Phân bố nguồn ảnh trong train, validation và test.}
+    \label{fig:dataset-sources}
+\end{figure}
+
+Phân bố dữ liệu cho thấy lớp \textit{helmet} chiếm ưu thế trong tập train, trong khi \textit{non-helmet} có ít mẫu hơn đáng kể. Đây là điểm bất lợi vì \textit{non-helmet} lại là lớp quan trọng nhất đối với phát hiện vi phạm. Ngoài ra, Hình \ref{fig:dataset-sources} cho thấy validation có tỷ lệ ảnh từ nguồn \texttt{grounding\_dino} cao hơn nhiều so với train và test. Vì vậy, kết quả validation thấp hơn test có thể một phần đến từ lệch phân phối giữa các split.
+
+\subsection{Tiền xử lý và chuẩn hóa dữ liệu}
+
+Các ảnh trong dữ liệu đã được resize về kích thước mục tiêu 640x640. Annotation COCO biểu diễn bounding box theo dạng \texttt{[x, y, width, height]} trong hệ tọa độ pixel. Với YOLO và RT-DETR thông qua Ultralytics \cite{ultralytics}, nhóm chuyển annotation sang định dạng YOLO:
+
+\[
+    \texttt{class\_id},\; x_c,\; y_c,\; w,\; h
+\]
+
+trong đó $x_c, y_c, w, h$ được chuẩn hóa về khoảng $[0,1]$. Việc chuyển đổi này được cài đặt trong file \texttt{models/dataset.py}. Với Faster R-CNN, dữ liệu được đọc trực tiếp từ COCO JSON bằng class \texttt{CocoDetectionDataset}, sau đó bounding box được chuyển từ định dạng \texttt{xywh} sang \texttt{xyxy} để phù hợp với API của PyTorch/Torchvision.
+
+Các bước tiền xử lý chính gồm:
+
+\begin{itemize}
+    \item Đọc annotation COCO cho train, validation và test.
+    \item Chuyển class id từ COCO 1-indexed sang YOLO 0-indexed khi dùng Ultralytics.
+    \item Chuẩn hóa bounding box về tọa độ tương đối cho YOLO/RT-DETR.
+    \item Tạo file \texttt{dataset.yaml} gồm đường dẫn ảnh, nhãn và tên lớp.
+    \item Với Faster R-CNN, ảnh được chuyển thành tensor và annotation được đóng gói thành dictionary gồm \texttt{boxes}, \texttt{labels}, \texttt{image\_id}, \texttt{area}, \texttt{iscrowd}.
+\end{itemize}
+
+Trong quá trình huấn luyện bằng Ultralytics, YOLO và RT-DETR sử dụng các augmentation mặc định như thay đổi HSV, dịch chuyển, scale, lật ngang và mosaic. Faster R-CNN trong script hiện tại không dùng augmentation phức tạp, chủ yếu dùng ảnh tensor và annotation gốc.
+
+\section{Mô hình và cấu hình huấn luyện}
+
+\subsection{Tổng quan ba mô hình}
+
+\begin{table}[H]
+    \centering
+    \caption{Tổng quan kiến trúc ba mô hình}
+    \label{tab:model-overview}
+    \small
+    \begin{tabular}{@{}l l c p{0.43\linewidth}@{}}
+        \toprule
+        \textbf{Mô hình} & \textbf{Kiểu} & \textbf{Tham số} & \textbf{Tóm tắt} \\
+        \midrule
+        YOLO & One-stage & 21.78M & Dự đoán bbox và class trực tiếp trên nhiều scale, ưu tiên tốc độ inference. \\
+        Faster R-CNN & Two-stage & 41.31M & Dùng RPN sinh proposal, sau đó RoI head phân loại và tinh chỉnh bbox. \\
+        RT-DETR & Transformer & 32.81M & Dùng hybrid encoder và transformer decoder để dự đoán object queries end-to-end. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Môi trường thực nghiệm}
+
+Toàn bộ quá trình huấn luyện và tuning được chạy trên Kaggle Notebook. Cấu hình GPU sử dụng là 2 GPU NVIDIA Tesla T4, mỗi GPU có khoảng 16GB VRAM. Các script ghi kết quả huấn luyện, checkpoint và log trong thư mục output tương ứng của từng mô hình. Các checkpoint/model cuối cùng được lưu tại \href{https://huggingface.co/dtdat1234/helmet-violation-detection-models}{Hugging Face repository của nhóm}.
+
+\begin{table}[H]
+    \centering
+    \caption{Môi trường thực nghiệm}
+    \label{tab:experiment-env}
+    \begin{tabular}{@{}p{0.34\linewidth} p{0.56\linewidth}@{}}
+        \toprule
+        \textbf{Hạng mục} & \textbf{Thiết lập} \\
+        \midrule
+        Nền tảng & Kaggle Notebook \\
+        GPU & 2 x NVIDIA Tesla T4, khoảng 16GB VRAM/GPU \\
+        Framework chính & PyTorch/Torchvision cho Faster R-CNN; Ultralytics cho YOLO và RT-DETR \\
+        Công cụ tuning & Ray Tune, mỗi trial dùng 1 GPU và 2 CPU \\
+        Kích thước ảnh & 640 x 640 cho cả ba mô hình \\
+        Seed & 42 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{YOLO}
+
+YOLO là detector một giai đoạn, tức mô hình dự đoán vị trí bbox và nhãn lớp trực tiếp từ đặc trưng ảnh mà không cần bước sinh proposal riêng \cite{redmon2016you}. Cách thiết kế này làm giảm độ trễ inference, phù hợp với bài toán ảnh giao thông vì hệ thống thực tế thường cần xử lý nhiều khung hình trong thời gian ngắn. Trong đề tài này, YOLO được huấn luyện từ checkpoint pretrained \texttt{yolo26m.pt} để tận dụng đặc trưng thị giác đã học trên tập dữ liệu lớn.
+
+Pipeline YOLO gồm ba phần chính. Backbone trích xuất đặc trưng ảnh ở nhiều mức trừu tượng khác nhau; neck hợp nhất đặc trưng đa tỉ lệ để giữ thông tin của cả vật thể lớn như xe máy và vật thể nhỏ như vùng đầu; detection head dự đoán bbox, class probability và phân phối khoảng cách bbox. Các khối convolution/C2f và activation SiLU giúp mô hình học đặc trưng cục bộ hiệu quả, trong khi cơ chế dự đoán trên nhiều scale hỗ trợ nhận diện đối tượng có kích thước khác nhau.
+
+YOLO phù hợp với đề tài vì dữ liệu có nhiều đối tượng nhỏ, mật độ giao thông thay đổi và yêu cầu tốc độ cao. Lớp \textit{helmet} và \textit{non-helmet} thường chỉ chiếm vùng nhỏ trên ảnh 640x640, trong khi \textit{motorbike} có kích thước lớn hơn và hình dạng đa dạng. Kiến trúc đa tỉ lệ của YOLO giúp mô hình đồng thời xử lý hai nhóm kích thước này. Ngoài ra, mô hình một giai đoạn có FPS cao hơn các hướng hai giai đoạn hoặc transformer nặng, nên phù hợp làm mô hình chính khi ưu tiên triển khai gần thời gian thực.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.64\linewidth]{img/yolo/architecture_summary.png}
+    \caption{Sơ đồ tóm tắt pipeline phát hiện đối tượng của YOLO.}
+    \label{fig:yolo-architecture}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{Cấu hình huấn luyện YOLO}
+    \label{tab:yolo-config}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Thành phần} & \textbf{Giá trị} \\
+        \midrule
+        Model & \texttt{yolo26m.pt} pretrained \\
+        Epochs & 50 \\
+        Batch size & 32 \\
+        Image size & 640 \\
+        Optimizer & Auto optimizer của Ultralytics \\
+        Learning rate ban đầu & 0.000111195 \\
+        LRF & 0.177187 \\
+        Weight decay & 0.000124390 \\
+        Loss & Box loss, classification loss, DFL loss \\
+        Augmentation & HSV, translate, scale, flip, mosaic \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Các siêu tham số tốt nhất được chọn bằng Ray Tune trên validation set, tối ưu theo mAP@0.5:0.95. Best tune validation mAP@0.5:0.95 đạt 0.2161. Sau khi chọn cấu hình, mô hình được train lại để đánh giá trên test set. Trong ba mô hình, YOLO được kỳ vọng là phương án cân bằng nhất giữa độ chính xác và tốc độ.
+
+\subsection{Faster R-CNN}
+
+Faster R-CNN là detector hai giai đoạn \cite{ren2015faster}. Giai đoạn thứ nhất dùng Region Proposal Network (RPN) để sinh các vùng ứng viên có khả năng chứa đối tượng. Giai đoạn thứ hai dùng RoI head để phân loại từng proposal và tinh chỉnh lại bbox. Cách tiếp cận này thường có ưu điểm về localization vì mô hình xử lý từng vùng ứng viên rõ ràng hơn so với dự đoán trực tiếp toàn ảnh.
+
+Trong đề tài, Faster R-CNN sử dụng backbone ResNet-50-FPN pretrained \cite{he2016deep}. ResNet-50 trích xuất đặc trưng ảnh, còn FPN tạo đặc trưng đa tỉ lệ để hỗ trợ đối tượng có kích thước khác nhau. Predictor cuối được thay bằng \texttt{FastRCNNPredictor} cho 4 lớp đầu ra, gồm background và ba lớp \textit{motorbike}, \textit{helmet}, \textit{non-helmet}. Các activation chính trong ResNet là ReLU.
+
+Faster R-CNN phù hợp với đề tài ở vai trò baseline hai giai đoạn. Với bài toán phát hiện vi phạm không đội mũ, bbox quanh vùng đầu cần tương đối chính xác vì nhãn \textit{helmet} và \textit{non-helmet} dễ nhầm khi bbox lệch hoặc bao gồm quá nhiều nền. Cơ chế proposal và RoI pooling giúp mô hình tập trung vào từng vùng đối tượng, từ đó có tiềm năng cải thiện localization trong các ảnh ít đối tượng hoặc đối tượng rõ ràng. Bên cạnh đó, so sánh Faster R-CNN với YOLO và RT-DETR giúp đánh giá sự đánh đổi giữa độ chính xác và tốc độ.
+
+Hạn chế chính của Faster R-CNN là tốc độ thấp hơn do phải xử lý hai giai đoạn. Mô hình cũng có số tham số lớn hơn và dễ overfit khi tập dữ liệu không cân bằng, đặc biệt với lớp \textit{non-helmet}. Vì vậy, trong báo cáo này Faster R-CNN được dùng như baseline tham chiếu thay vì lựa chọn tối ưu cho triển khai thời gian thực.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.64\linewidth]{img/fasterrcnn/architecture_summary.png}
+    \caption{Sơ đồ tóm tắt pipeline Faster R-CNN với ResNet50-FPN.}
+    \label{fig:faster-architecture}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{Cấu hình huấn luyện Faster R-CNN}
+    \label{tab:faster-config}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Thành phần} & \textbf{Giá trị} \\
+        \midrule
+        Backbone & ResNet50-FPN pretrained \\
+        Epochs & 50 \\
+        Batch size & 4 \\
+        Optimizer & SGD \\
+        Learning rate & 0.0017991 \\
+        Momentum & 0.9 \\
+        Weight decay & 0.0005 \\
+        Scheduler & StepLR, giảm LR theo từng giai đoạn \\
+        Loss & RPN classification/regression + ROI classification/regression \\
+        Best validation loss & 0.8642 tại epoch 2 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Faster R-CNN được train trực tiếp trên COCO annotation, không cần chuyển annotation sang định dạng YOLO. Trong quá trình validation, script tính loss bằng cách đặt model ở chế độ train nhưng không cập nhật gradient, sau đó dùng COCO evaluation để tính mAP trên validation và test. Checkpoint được chọn theo validation loss thấp nhất nhằm hạn chế ảnh hưởng của overfitting.
+
+\subsection{RT-DETR}
+
+RT-DETR là detector dựa trên transformer, được thiết kế cho phát hiện đối tượng thời gian thực \cite{rtdetr}. Mô hình kết hợp backbone convolution để trích xuất đặc trưng, hybrid encoder để hợp nhất đặc trưng đa tỉ lệ và transformer decoder để dự đoán tập object queries. Khác với detector một giai đoạn truyền thống, RT-DETR hướng tới dự đoán end-to-end và giảm phụ thuộc vào bước NMS thủ công.
+
+Ưu điểm chính của RT-DETR là khả năng mô hình hóa quan hệ toàn cục giữa các vùng ảnh thông qua attention. Điều này hữu ích với ảnh giao thông vì đối tượng thường bị che khuất, xuất hiện nhiều xe/người trong cùng cảnh và có quan hệ không gian rõ ràng giữa xe máy, người điều khiển và vùng đầu. Trong bài toán này, mô hình cần không chỉ phát hiện từng bbox riêng lẻ mà còn học ngữ cảnh: vùng \textit{helmet} hoặc \textit{non-helmet} thường nằm phía trên người điều khiển và liên quan đến vùng \textit{motorbike}.
+
+RT-DETR phù hợp với đề tài ở vai trò mô hình hiện đại dựa trên transformer để so sánh với hai hướng còn lại. So với YOLO, RT-DETR có cơ chế attention mạnh hơn cho ngữ cảnh toàn ảnh; so với Faster R-CNN, mô hình tránh pipeline proposal hai giai đoạn và hướng tới dự đoán end-to-end. Tuy nhiên, RT-DETR-L tốn tài nguyên hơn, batch size phải đặt nhỏ hơn và tốc độ inference thấp hơn trong thực nghiệm hiện tại. Vì vậy, RT-DETR được dùng để đánh giá tiềm năng của transformer detector hơn là lựa chọn ưu tiên nếu yêu cầu FPS cao.
+
+Các activation trong phần convolution/backbone thường là ReLU hoặc SiLU tùy backbone, trong khi các khối transformer dùng feed-forward network với activation phi tuyến. Loss của RT-DETR kết hợp GIoU loss, L1 box loss và classification loss, phù hợp với bài toán cần đồng thời tối ưu localization và phân lớp.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.64\linewidth]{img/rtdetr/architecture_summary_full.png}
+    \caption{Sơ đồ tóm tắt pipeline RT-DETR.}
+    \label{fig:rtdetr-architecture}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{Cấu hình huấn luyện RT-DETR}
+    \label{tab:rtdetr-config}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Thành phần} & \textbf{Giá trị} \\
+        \midrule
+        Model & RT-DETR pretrained, checkpoint cuối \texttt{best.pt} \\
+        Epochs & 40 \\
+        Batch size & 2 \\
+        Image size & 640 \\
+        Optimizer & AdamW \\
+        Learning rate ban đầu & 0.000241193 \\
+        LRF & 0.032969 \\
+        Weight decay & 0.000138919 \\
+        Loss & GIoU loss, classification loss, L1 box loss \\
+        Augmentation & HSV, translate, scale, flip, mosaic \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Tương tự YOLO, RT-DETR được tune bằng Ray Tune trên validation set. Best tune validation mAP@0.5:0.95 đạt 0.1371, sau đó mô hình được train final và đánh giá lại trên validation/test. Trong báo cáo, RT-DETR đóng vai trò mô hình transformer tham chiếu để kiểm tra liệu attention và dự đoán end-to-end có cải thiện được bài toán phát hiện mũ bảo hiểm hay không.
+
+\subsection{Tìm kiếm siêu tham số bằng Ray Tune}
+
+Nhóm sử dụng \texttt{models/raytune.py} làm entrypoint chung cho ba mô hình. Quy trình được thiết kế theo nguyên tắc: validation set dùng để chọn siêu tham số, test set chỉ dùng sau khi cấu hình cuối đã được cố định.
+
+\textbf{Quy trình tổng quát.}
+
+\begin{enumerate}
+    \item Ray Tune sinh một cấu hình từ \texttt{search\_space(model)}.
+    \item \texttt{make\_trainable()} gọi lại hàm train tương ứng của từng mô hình.
+    \item \texttt{apply\_config()} ghi đè bộ siêu tham số của trial lên args huấn luyện.
+    \item Trial train 20 epoch và report metric validation về Ray.
+    \item Ray chọn trial tốt nhất, lưu \texttt{best\_config.json}, sau đó train lại từ đầu 50 epoch và đánh giá trên test.
+\end{enumerate}
+
+Mỗi mô hình được thử 10 bộ siêu tham số. Seed được cố định là 42. Trên Kaggle, nhóm đặt \texttt{max\_concurrent}=2; mỗi trial dùng 1 GPU và 2 CPU, do đó hai GPU Tesla T4 được dùng song song cho hai trial tại cùng thời điểm. Runtime environment được truyền cho Ray workers thông qua \texttt{build\_runtime\_env()}, giúp các trial dùng đúng virtual environment, CUDA, \texttt{DATA\_PATH} và thư mục làm việc của repo.
+
+\begin{table}[H]
+    \centering
+    \caption{Thiết lập chạy Ray Tune}
+    \label{tab:raytune-process}
+    \begin{tabular}{@{}p{0.34\linewidth} p{0.56\linewidth}@{}}
+        \toprule
+        \textbf{Thành phần} & \textbf{Giá trị} \\
+        \midrule
+        Số trial mỗi mô hình & 10 bộ siêu tham số \\
+        Epoch mỗi trial & 20 epoch \\
+        Epoch final retrain & 50 epoch \\
+        Tài nguyên mỗi trial & 1 GPU + 2 CPU \\
+        Song song & \texttt{max\_concurrent}=2, dùng đồng thời 2 GPU T4 \\
+        Metric chọn best & YOLO/RT-DETR: max validation mAP@0.5:0.95; Faster R-CNN: min validation loss \\
+        Scheduler & ASHA cho Faster R-CNN; YOLO/RT-DETR chạy đủ trial vì metric chỉ report ở cuối trial \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\textbf{Khác biệt giữa ba mô hình.}
+
+\begin{table}[H]
+    \centering
+    \caption*{Tóm tắt cơ chế Ray Tune theo từng mô hình}
+    \small
+    \begin{tabular}{@{}p{0.17\linewidth} p{0.22\linewidth} p{0.25\linewidth} p{0.26\linewidth}@{}}
+        \toprule
+        \textbf{Mô hình} & \textbf{Metric chọn best} & \textbf{Cách report metric} & \textbf{Ghi chú triển khai} \\
+        \midrule
+        YOLO & Max \texttt{val\_mAP50\_95} & Report sau khi trial train đủ 20 epoch & Dùng Ultralytics; trial gọi \texttt{run\_yolo()}, tạo \texttt{dataset.yaml}, train và validate trên split val. \\
+        RT-DETR & Max \texttt{val\_mAP50\_95} & Report sau khi trial train đủ 20 epoch & Dùng Ultralytics; optimizer cố định \texttt{AdamW}; trial gọi \texttt{run\_rtdetr()}. \\
+        Faster R-CNN & Min \texttt{val\_loss} & Report sau từng epoch & Dùng Torchvision; có \texttt{ASHAScheduler} để dừng sớm trial kém. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+YOLO và RT-DETR có cơ chế tune gần giống nhau vì đều dùng Ultralytics. Hai mô hình này chỉ report metric sau khi trial kết thúc, nên Ray Tune chạy đủ 20 epoch cho mỗi trial. Chỉ số chọn cấu hình là validation mAP@0.5:0.95, vì metric này nghiêm ngặt hơn mAP@0.5 khi đánh giá bbox ở nhiều ngưỡng IoU.
+
+Faster R-CNN dùng Torchvision, do đó pipeline khác hai mô hình còn lại. Validation loss được tính bằng cách đặt model ở chế độ train nhưng không cập nhật gradient. Sau mỗi epoch, callback \texttt{on\_epoch\_end()} report \texttt{val\_loss} về Ray. Nhờ có metric theo epoch, Faster R-CNN dùng \texttt{ASHAScheduler} với \texttt{max\_t}=20, \texttt{grace\_period}=1 và \texttt{reduction\_factor}=2 để loại sớm cấu hình có validation loss kém.
+
+\textbf{Không gian tìm kiếm.}
+
+Không gian tìm kiếm được giới hạn để phù hợp thời gian Kaggle nhưng vẫn bao phủ các tham số ảnh hưởng trực tiếp đến hội tụ. Learning rate và weight decay dùng phân phối log-uniform; batch size và các tham số scheduler rời rạc dùng \texttt{tune.choice()}.
+
+\begin{itemize}
+    \item \textbf{YOLO}: tune \texttt{lr0} từ $10^{-4}$ đến $10^{-2}$ theo log-uniform, batch trong nhóm 8/16/32, \texttt{lrf} từ 0.01 đến 0.2 và \texttt{weight\_decay} từ $10^{-5}$ đến $10^{-3}$ theo log-uniform.
+    \item \textbf{Faster R-CNN}: tune learning rate từ $10^{-4}$ đến $10^{-2}$, batch size trong nhóm 2/4/8, weight decay từ $10^{-5}$ đến $10^{-3}$, đồng thời thử \texttt{lr\_step} 5/10/15 và \texttt{lr\_gamma} 0.1/0.5.
+    \item \textbf{RT-DETR}: tune \texttt{lr0} từ $10^{-5}$ đến $10^{-3}$, batch trong nhóm 2/4/8, \texttt{lrf} từ 0.01 đến 0.2 và \texttt{weight\_decay} từ $10^{-5}$ đến $10^{-3}$; optimizer được cố định là \texttt{AdamW}.
+\end{itemize}
+
+\textbf{Cấu hình tốt nhất.}
+
+\begin{table}[H]
+    \centering
+    \caption*{Tóm tắt best config thu được từ Ray Tune}
+    \small
+    \begin{tabular}{@{}p{0.18\linewidth} p{0.43\linewidth} p{0.29\linewidth}@{}}
+        \toprule
+        \textbf{Mô hình} & \textbf{Best config} & \textbf{Nhận xét} \\
+        \midrule
+        YOLO & \texttt{lr0}=0.000111, \texttt{batch}=32, \texttt{lrf}=0.177187, \texttt{weight\_decay}=0.000124 & Batch lớn giúp ổn định gradient; learning rate thấp hơn default giúp fine-tune ổn định. \\
+        Faster R-CNN & \texttt{lr}=0.0017991, batch size 4, momentum 0.9, weight decay 0.0005, \texttt{lr\_step}=15, \texttt{lr\_gamma}=0.1 & Chọn theo validation loss; checkpoint tốt nhất xuất hiện sớm ở epoch 2. \\
+        RT-DETR & \texttt{lr0}=0.000241, \texttt{batch}=2, \texttt{lrf}=0.032969, \texttt{weight\_decay}=0.000139, optimizer \texttt{AdamW} & Batch nhỏ phù hợp giới hạn VRAM; \texttt{lrf} thấp giúp giảm learning rate mạnh hơn về cuối. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Với YOLO, best tune validation mAP@0.5:0.95 đạt 0.2161. Với RT-DETR, best tune validation mAP@0.5:0.95 đạt 0.1371 và validation mAP@0.5 đạt 0.2746. Với Faster R-CNN, cấu hình được chọn theo validation loss; trong final train 50 epoch, validation loss tốt nhất là 0.8642 tại epoch 2. Sau mốc này, train loss tiếp tục giảm nhưng validation loss tăng, cho thấy mô hình bắt đầu overfit sớm.
+
+Sau khi có best config, Phase 2 không lấy trực tiếp trọng số từ trial tốt nhất. Thay vào đó, code tạo lại mô hình từ checkpoint pretrained ban đầu, áp best config và train lại trong 50 epoch. Với YOLO và RT-DETR, checkpoint final được copy từ \texttt{weights/best.pt} của run final sang \texttt{yolo\_best.pt} hoặc \texttt{rtdetr\_best.pt}. Với Faster R-CNN, code lưu \texttt{fasterrcnn\_best.pth} mỗi khi validation loss giảm. Cuối cùng, các script đánh giá test và đo FPS, rồi \texttt{raytune.py} ghi file kết quả final theo từng mô hình, gồm best config, mAP@0.5, mAP@0.5:0.95, recall/AR và FPS.
+
+Điểm cần lưu ý là validation set có lệch phân phối nguồn ảnh so với train/test, nên best validation metric không phải lúc nào cũng tăng đồng đều với test metric. Vì vậy báo cáo tách phần learning curves trên validation khỏi bảng so sánh cuối trên test set.
+
+\section{Kết quả thực nghiệm}
+
+\subsection{Learning curves}
+
+\subsubsection{YOLO}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{img/yolo/loss_curves_report.png}
+    \caption{Learning curves của YOLO: box loss, classification loss và DFL loss.}
+    \label{fig:yolo-loss}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\linewidth]{img/yolo/metrics_curves_report.png}
+    \caption{Precision, recall và mAP của YOLO trên validation theo epoch.}
+    \label{fig:yolo-metrics}
+\end{figure}
+
+YOLO có train loss giảm đều qua các epoch, đặc biệt box loss và DFL loss ổn định hơn ở nửa sau quá trình train. Validation mAP@0.5:0.95 đạt tốt nhất ở epoch 36 với giá trị 0.2121; epoch cuối đạt 0.2037. Precision và recall tăng tương đối đồng pha, cho thấy mô hình không chỉ học localization mà còn giữ được khả năng phân lớp. Dao động ở validation chủ yếu đến từ lệch phân phối nguồn ảnh giữa train và validation, nên checkpoint tốt nhất được chọn theo mAP validation thay vì epoch cuối.
+
+\subsubsection{Faster R-CNN}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{img/fasterrcnn/loss_curves_report.png}
+    \caption{Learning curves của Faster R-CNN: train loss, validation loss và gap loss.}
+    \label{fig:faster-loss}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\linewidth]{img/fasterrcnn/lr_schedule_report.png}
+    \caption{Learning rate schedule của Faster R-CNN.}
+    \label{fig:faster-lr}
+\end{figure}
+
+Faster R-CNN có train loss giảm rất nhanh từ 0.3576 xuống khoảng 0.0523. Tuy nhiên validation loss thấp nhất ở epoch 2, sau đó tăng dần lên 1.5990 ở epoch 50; khoảng cách giữa validation loss và train loss cũng mở rộng liên tục. Learning-rate schedule đã giảm LR theo từng giai đoạn nhưng không đảo chiều được xu hướng này, nên nguyên nhân chính nhiều khả năng là overfitting và thiếu augmentation mạnh cho pipeline Faster R-CNN. Vì vậy checkpoint tốt nhất của Faster R-CNN nên ưu tiên epoch có validation loss thấp nhất thay vì epoch cuối.
+
+Khác với YOLO và RT-DETR, Faster R-CNN được train bằng pipeline Torchvision tự viết. File log hiện tại chỉ lưu \texttt{train\_loss}, \texttt{val\_loss} và learning rate theo từng epoch; mAP/precision/recall chỉ được tính sau khi train xong bằng COCO evaluation. Do đó báo cáo không dựng được biểu đồ precision, recall và mAP theo epoch cho Faster R-CNN nếu không train lại và chạy COCO evaluation ở cuối từng epoch. Để tránh tạo số liệu suy diễn, phần 5.1.2 chỉ trình bày loss curve và learning-rate schedule của Faster R-CNN.
+
+\subsubsection{RT-DETR}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{img/rtdetr/loss_curves_report.png}
+    \caption{Learning curves của RT-DETR: GIoU loss, classification loss và L1 box loss.}
+    \label{fig:rtdetr-loss}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\linewidth]{img/rtdetr/metrics_curves_report.png}
+    \caption{Precision, recall và mAP của RT-DETR trên validation theo epoch.}
+    \label{fig:rtdetr-metrics}
+\end{figure}
+
+RT-DETR có train loss giảm tương đối đều. Validation GIoU loss và L1 loss giảm ở giai đoạn cuối, cho thấy phần localization vẫn cải thiện, nhưng validation classification loss tăng và dao động nên khả năng tách \textit{helmet}/\textit{non-helmet} chưa ổn định bằng YOLO. Best validation mAP@0.5:0.95 của run hiện tại đạt 0.1657 ở epoch 39; epoch cuối đạt 0.1624. Batch size nhỏ bằng 2 giúp mô hình fit vào GPU nhưng cũng làm gradient nhiễu hơn, đặc biệt với các lớp nhỏ và mất cân bằng.
+
+\subsection{Confusion matrix và phân tích lớp trên test}
+
+Confusion matrix được tính bằng cách match prediction với ground truth theo IoU threshold 0.5; các prediction dưới confidence threshold được loại bỏ trước khi thống kê. Với Faster R-CNN, file kết quả dùng confidence threshold 0.25. Với YOLO và RT-DETR, confusion matrix được sinh từ lượt đánh giá Ultralytics trên test set.
+
+\subsubsection{YOLO}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\linewidth]{img/yolo/confusion_matrix_normalized.png}
+    \caption{Confusion matrix chuẩn hóa của YOLO trên test.}
+    \label{fig:yolo-confusion}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\linewidth]{img/yolo/BoxPR_curve.png}
+    \caption{Precision-Recall curve của YOLO theo từng lớp.}
+    \label{fig:yolo-pr}
+\end{figure}
+
+YOLO đạt cân bằng tốt giữa precision và recall trên test, đồng thời duy trì lợi thế về tốc độ khi so sánh tổng thể. Confusion matrix cho thấy hai lớp lớn là \textit{motorbike} và \textit{helmet} được nhận diện ổn định hơn, trong khi \textit{non-helmet} vẫn là lớp khó nhất vì số lượng mẫu ít và vùng cần nhận diện thường nhỏ. Đường PR của \textit{non-helmet} giảm nhanh hơn khi tăng recall, nghĩa là nếu muốn bắt nhiều vi phạm hơn thì cần chấp nhận thêm false positive hoặc tune threshold riêng cho lớp này.
+
+\subsubsection{Faster R-CNN}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\linewidth]{img/fasterrcnn/confusion_matrix_normalized.png}
+    \caption{Confusion matrix chuẩn hóa của Faster R-CNN trên test.}
+    \label{fig:faster-confusion}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\linewidth]{img/fasterrcnn/per_class_metrics.png}
+    \caption{Precision, recall và F1-score theo từng lớp của Faster R-CNN trên test.}
+    \label{fig:faster-class-metrics}
+\end{figure}
+
+Faster R-CNN có recall cao trên cả ba lớp, đặc biệt \textit{motorbike} và \textit{helmet}. Tuy nhiên precision thấp hơn recall, thể hiện mô hình sinh nhiều dự đoán dư, đặc biệt ở hàng background trong confusion matrix. Biểu đồ per-class metrics cho thấy mô hình phù hợp khi ưu tiên giảm bỏ sót, nhưng chưa tối ưu cho bài toán cần bbox gọn và ít cảnh báo sai. Điều này cũng khớp với learning curves: mô hình fit train rất mạnh, nhưng validation loss tăng khiến các proposal dư khó được loại bỏ triệt để ở giai đoạn inference.
+
+\subsubsection{RT-DETR}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\linewidth]{img/rtdetr/confusion_matrix_normalized.png}
+    \caption{Confusion matrix chuẩn hóa của RT-DETR trên test.}
+    \label{fig:rtdetr-confusion}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\linewidth]{img/rtdetr/BoxPR_curve.png}
+    \caption{Precision-Recall curve của RT-DETR theo từng lớp.}
+    \label{fig:rtdetr-pr}
+\end{figure}
+
+RT-DETR nhận diện lớp \textit{motorbike} tốt hơn hai lớp vùng đầu. Đường PR trên test cho thấy RT-DETR giữ recall khá tốt, nhưng AP của \textit{non-helmet} vẫn thấp nhất, phản ánh khó khăn trong nhận diện vi phạm khi đối tượng nhỏ hoặc bị che khuất. So với YOLO, RT-DETR có lợi thế mô hình hóa quan hệ toàn cục nhờ transformer decoder, nhưng batch size nhỏ và tốc độ inference thấp làm kết quả thực tế kém thuận lợi hơn khi triển khai thời gian thực.
+
+\subsection{Ví dụ dự đoán trực quan}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{img/common/inference_test_1.png}
+    \caption{Inference của ba mô hình trên ảnh test 1.}
+    \label{fig:inference-test-1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{img/common/inference_test_2.png}
+    \caption{Inference của ba mô hình trên ảnh test 2.}
+    \label{fig:inference-test-2}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{img/common/inference_test_3.png}
+    \caption{Inference của ba mô hình trên ảnh test 3.}
+    \label{fig:inference-test-3}
+\end{figure}
+
+Ba ví dụ trực quan được sinh từ checkpoint tốt nhất của YOLO, Faster R-CNN và RT-DETR trên cùng ba ảnh test. Các ảnh được chọn có số bbox vừa phải, nằm trong khoảng 6--9 annotation để tránh hình quá rối; hai ảnh đầu có đủ \textit{motorbike}, \textit{helmet} và \textit{non-helmet}, còn ảnh thứ ba nhấn mạnh tình huống nhiều xe máy nhìn từ góc cao. Mỗi bbox hiển thị nhãn lớp kèm confidence theo đúng style inference của notebook. Nhìn chung, YOLO và RT-DETR cho bbox gọn hơn ở các vùng đầu, trong khi Faster R-CNN có xu hướng giữ nhiều proposal hơn. Khi đối tượng rõ, đủ lớn và ít bị che khuất, cả ba mô hình đều phát hiện được xe máy và trạng thái đội mũ/không đội mũ; các lỗi còn lại chủ yếu xuất hiện ở vùng đầu nhỏ, bị che khuất hoặc nằm sát mép ảnh.
+
+\subsection{Kết quả định lượng trên test}
+
+Toàn bộ số liệu trong mục này được đo lại bằng script \texttt{models/checkpoints/eval\_per\_class.py} trên cùng tập test (659 ảnh, 1861 annotation), dùng chung một bộ đánh giá COCOeval cho cả ba mô hình để các con số so sánh được trực tiếp với nhau. Precision, Recall và F1 được tính tại ngưỡng vận hành confidence $= 0.25$ và IoU $= 0.5$.
+
+Điểm cần lưu ý trước khi đọc bảng: tập test mất cân bằng nặng. Lớp \textit{helmet} có 1256 bounding box, \textit{motorbike} có 467, nhưng \textit{non-helmet} --- lớp quyết định của bài toán --- chỉ có 138 box, tương đương khoảng 7\% tổng số annotation. Vì mAP là trung bình cộng theo lớp với trọng số bằng nhau, một mô hình mạnh ở hai lớp dễ vẫn có thể đạt mAP cao dù yếu ở đúng lớp ta quan tâm. Do đó báo cáo trình bày chỉ số \textbf{tách riêng theo từng lớp} thay vì chỉ nhìn con số gộp.
+
+\begin{table}[H]
+    \centering
+    \caption{Chỉ số theo từng lớp trên test set (COCOeval; P/R/F1 tại conf = 0.25, IoU = 0.5)}
+    \label{tab:per-class-metrics}
+    \small
+    \begin{tabular}{llrrrrr}
+        \toprule
+        \textbf{Mô hình} & \textbf{Lớp} & \textbf{AP@0.5} & \textbf{AP@0.5:0.95} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
+        \midrule
+        \multirow{3}{*}{YOLO}
+          & motorbike   & 0.518 & 0.422 & 0.385 & 0.947 & 0.547 \\
+          & helmet      & 0.590 & 0.329 & 0.588 & 0.935 & \textbf{0.722} \\
+          & non-helmet  & 0.636 & 0.417 & \textbf{0.613} & 0.609 & \textbf{0.611} \\
+        \midrule
+        \multirow{3}{*}{Faster R-CNN}
+          & motorbike   & \textbf{0.779} & \textbf{0.602} & 0.311 & 0.944 & 0.468 \\
+          & helmet      & 0.558 & 0.271 & 0.442 & 0.920 & 0.597 \\
+          & non-helmet  & 0.613 & 0.395 & 0.238 & 0.630 & 0.346 \\
+        \midrule
+        \multirow{3}{*}{RT-DETR}
+          & motorbike   & 0.445 & 0.362 & 0.365 & 0.940 & 0.526 \\
+          & helmet      & 0.575 & 0.315 & 0.533 & 0.928 & 0.677 \\
+          & non-helmet  & \textbf{0.646} & \textbf{0.430} & 0.180 & \textbf{0.739} & 0.289 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{img/common/per_class_ap.png}
+    \caption{AP@0.5 tách theo từng lớp. Faster R-CNN vượt trội ở \textit{motorbike} nhưng thua ở \textit{non-helmet}.}
+    \label{fig:per-class-ap}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{Chỉ số gộp trên test set (tham chiếu; FPS đo trên GPU Tesla T4)}
+    \label{tab:model-comparison}
+    \begin{tabular}{lrrrr}
+        \toprule
+        \textbf{Mô hình} & \textbf{mAP@0.5} & \textbf{mAP@0.5:0.95} & \textbf{AR@100} & \textbf{FPS} \\
+        \midrule
+        YOLO & 0.582 & 0.389 & 0.717 & \textbf{36.4} \\
+        Faster R-CNN & \textbf{0.650} & \textbf{0.423} & 0.624 & 12.4 \\
+        RT-DETR & 0.555 & 0.369 & \textbf{0.727} & 2.8 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{img/common/model_comparison.png}
+    \caption{So sánh hiệu năng ba mô hình.}
+    \label{fig:model-comparison}
+\end{figure}
+
+Nếu chỉ nhìn Bảng \ref{tab:model-comparison}, kết luận sẽ là Faster R-CNN tốt nhất vì đạt mAP@0.5 cao nhất (0.650) và mAP@0.5:0.95 cao nhất (0.423). Tuy nhiên Bảng \ref{tab:per-class-metrics} cho thấy con số gộp này gây hiểu nhầm: ưu thế của Faster R-CNN gần như đến trọn vẹn từ lớp \textit{motorbike}, nơi nó đạt AP@0.5 = 0.779 trong khi hai mô hình còn lại chỉ quanh 0.45--0.52. Đây là lớp dễ nhất --- vật thể lớn, hình dạng rõ, nhiều mẫu --- và cũng là lớp ít giá trị nhất với mục tiêu phát hiện vi phạm. Ngược lại, ở lớp \textit{non-helmet}, Faster R-CNN chỉ đạt AP@0.5 = 0.613, thấp hơn cả YOLO (0.636) lẫn RT-DETR (0.646).
+
+Khác biệt rõ rệt nhất nằm ở điểm vận hành thực tế. Tại ngưỡng confidence 0.25, F1 của lớp \textit{non-helmet} là 0.611 với YOLO, nhưng chỉ 0.346 với Faster R-CNN và 0.289 với RT-DETR. Nguyên nhân là precision: YOLO đạt 0.613, trong khi Faster R-CNN chỉ 0.238 và RT-DETR chỉ 0.180. Nói cách khác, RT-DETR bắt được nhiều vi phạm (recall 0.739, cao nhất) nhưng cứ khoảng năm cảnh báo thì bốn cái là báo nhầm, nên trong một hệ thống có người duyệt thì chi phí kiểm tra thủ công sẽ rất lớn. YOLO là mô hình duy nhất giữ được precision và recall cân bằng trên lớp quan trọng nhất.
+
+Cộng thêm yếu tố tốc độ --- 36.4 FPS so với 12.4 và 2.8 --- YOLO là lựa chọn triển khai hợp lý nhất. Cần nhấn mạnh rằng lý do chọn YOLO không phải vì nó dẫn đầu mọi chỉ số gộp (thực tế nó không dẫn đầu), mà vì nó cho chất lượng tốt nhất trên đúng lớp mà bài toán hướng tới, đồng thời đáp ứng được yêu cầu thời gian thực. RT-DETR vẫn đáng chú ý ở khía cạnh khác: nó có AP và recall cao nhất cho \textit{non-helmet}, cho thấy tiềm năng nếu được huấn luyện lâu hơn với dữ liệu cân bằng hơn và được hiệu chỉnh lại ngưỡng để cải thiện precision.
+
+\section{Thảo luận và phân tích lỗi}
+
+\subsection{Overfitting và underfitting}
+
+YOLO có dấu hiệu học ổn định nhất trong ba mô hình: train loss giảm, validation metric tăng dần rồi dao động nhẹ ở cuối. Faster R-CNN có dấu hiệu overfitting mạnh nhất vì train loss giảm sâu nhưng validation loss tăng liên tục sau epoch 2. RT-DETR nằm giữa hai trường hợp này: localization loss trên validation có cải thiện, nhưng classification loss tăng về cuối, cho thấy phần phân biệt lớp vẫn chưa ổn định.
+
+Nguyên nhân chung có thể gồm:
+
+\begin{itemize}
+    \item Dữ liệu mất cân bằng lớp, đặc biệt lớp \textit{non-helmet} có ít bounding boxes hơn \textit{helmet}.
+    \item Vùng đầu và mũ bảo hiểm có kích thước nhỏ, dễ mất chi tiết ở ảnh 640x640.
+    \item Validation set có phân phối nguồn ảnh khác train/test, làm metric validation thấp và dao động.
+    \item Một phần pseudo-labels có thể nhiễu, ảnh hưởng đến quá trình học lớp nhỏ.
+\end{itemize}
+
+\subsection{Phân tích lỗi cụ thể}
+
+Các lỗi thường gặp khi quan sát batch prediction và confusion matrix:
+
+\begin{itemize}
+    \item \textbf{Miss detection}: mô hình bỏ sót người/xe ở rìa ảnh hoặc ở rất xa camera.
+    \item \textbf{False positive}: Faster R-CNN sinh nhiều bbox dư trên background; YOLO và RT-DETR cũng có một số bbox trùng hoặc bbox ở vùng không phải đối tượng.
+    \item \textbf{Nhầm class}: \textit{helmet} và \textit{non-helmet} dễ bị nhầm vì vùng đầu nhỏ, mờ hoặc bị che bởi góc nhìn từ trên cao.
+    \item \textbf{Sai localization}: bbox quanh xe hoặc vùng đầu đôi khi lệch khi đối tượng bị che khuất hoặc xuất hiện một phần trong ảnh.
+\end{itemize}
+
+\begin{table}[H]
+    \centering
+    \caption{Một số trường hợp dự đoán sai tiêu biểu trên test set}
+    \label{tab:error-cases}
+    \small
+    \begin{tabular}{@{}p{0.13\linewidth} p{0.17\linewidth} p{0.31\linewidth} p{0.30\linewidth}@{}}
+        \toprule
+        \textbf{Ảnh test} & \textbf{Mô hình} & \textbf{Lỗi quan sát được} & \textbf{Nguyên nhân giả thuyết} \\
+        \midrule
+        test\_1 & Faster R-CNN & Sinh bbox dư trên background hoặc giữ proposal không thật sự chắc chắn. & RPN tạo nhiều proposal; confidence threshold chưa tối ưu cho cảnh giao thông có nền phức tạp. \\
+        test\_2 & YOLO & Có trường hợp nhầm giữa \textit{helmet} và \textit{non-helmet}. & Vùng đầu nhỏ, mũ hoặc tóc bị che khuất, độ phân giải sau resize chưa đủ chi tiết. \\
+        test\_3 & RT-DETR & Bỏ sót hoặc dự đoán yếu với vùng \textit{non-helmet} ở xa. & Đối tượng nhỏ, góc nhìn từ cao làm vùng đầu bị nén và ít đặc trưng phân biệt. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Nhận xét tổng hợp}
+
+Nếu đánh giá theo đúng mục tiêu của bài toán, tức chất lượng trên lớp \textit{non-helmet} kết hợp với tốc độ, YOLO là mô hình phù hợp nhất trong ba lựa chọn hiện tại: F1 của lớp này đạt 0.611, gấp gần hai lần Faster R-CNN (0.346) và RT-DETR (0.289), đồng thời chạy nhanh nhất với 36.4 FPS. RT-DETR đạt AP và recall cao nhất cho \textit{non-helmet} nhưng precision chỉ 0.180 nên sinh quá nhiều cảnh báo sai, cộng với tốc độ 2.8 FPS, phù hợp hơn ở vai trò baseline transformer để tiếp tục tối ưu. Faster R-CNN có mAP gộp cao nhất nhưng phần lớn đến từ lớp \textit{motorbike}; trên \textit{non-helmet} nó kém nhất cả về AP lẫn recall, đồng thời dấu hiệu overfitting cho thấy cần bổ sung regularization, augmentation hoặc early stopping.
+
+\subsection{Hướng cải thiện}
+
+Các hướng cải thiện tiếp theo:
+
+\begin{itemize}
+    \item Chia lại train/validation/test theo nguồn ảnh để giảm lệch domain.
+    \item Tăng số lượng ảnh chứa \textit{non-helmet} hoặc oversample lớp này.
+    \item Thử kích thước ảnh lớn hơn như 800 hoặc 960 để cải thiện đối tượng nhỏ.
+    \item Kiểm tra và lọc pseudo-labels có confidence thấp.
+    \item Với Faster R-CNN, áp dụng early stopping theo validation loss và augmentation mạnh hơn.
+    \item Với RT-DETR, thử batch size lớn hơn hoặc gradient accumulation để giảm dao động.
+    \item Với YOLO, tiếp tục tune threshold confidence/IoU để cân bằng precision và recall khi triển khai.
+\end{itemize}

@@ -1,0 +1,117 @@
+\section{Ứng dụng}
+
+% ── Slide 1: Kiến trúc hệ thống ──────────────────────────────────────────────
+\begin{frame}{Kiến trúc hệ thống}
+
+\centering
+\includegraphics[width=\textwidth]{system_architecture.png}
+
+\end{frame}
+
+% ── Slide 2: Các thành phần hệ thống ─────────────────────────────────────────
+\begin{frame}{Các thành phần hệ thống}
+
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+  \textbf{Luồng xử lý}
+  \begin{itemize}\small
+    \item \textbf{Traefik} -- gateway, TLS termination
+    \item \textbf{Next.js} -- giao diện web
+    \item \textbf{Auth} -- xác thực (Supabase Auth)
+    \item \textbf{Ingestion} -- nhận file, lưu metadata
+    \item \textbf{Orchestration} -- tạo tác vụ $\to$ Redis
+    \item \textbf{Inference Worker} -- chạy mô hình, ghi kết quả
+    \item \textbf{Notification} -- cập nhật giao diện
+  \end{itemize}
+\end{column}
+\begin{column}{0.45\textwidth}
+  \begin{block}{Dịch vụ ngoài cụm}
+    \textbf{Supabase}: DB, Auth, Storage, Realtime
+  \end{block}
+  \vspace{0.3em}
+  \begin{block}{Dịch vụ trong cụm}
+    \textbf{Redis}: hàng đợi tác vụ, cache
+  \end{block}
+  \vspace{0.3em}
+  \begin{block}{Thiết kế}
+    Tính toán trên \textbf{GKE}; dữ liệu quản lý bởi \textbf{Supabase}
+  \end{block}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── Slide 3: Screenshot giao diện ────────────────────────────────────────────
+\begin{frame}{Giao diện -- Dashboard \& Kết quả phát hiện}
+
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \centering
+  \textbf{Dashboard tổng quan}\\[0.2em]
+  \includegraphics[width=\textwidth]{dashboard.png}
+\end{column}
+\begin{column}{0.5\textwidth}
+  \centering
+  \textbf{Kết quả phát hiện \& kiểm duyệt}\\[0.2em]
+  \includegraphics[width=\textwidth]{inference.png}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── Slide 4: Screenshot AI Detection ─────────────────────────────────────────
+\begin{frame}{Giao diện -- AI Detection Real-time}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{ai-detect-realtime.png}
+\end{column}
+\begin{column}{0.42\textwidth}
+  \textbf{Chức năng chính}\small
+  \begin{itemize}
+    \item \textbf{Đăng nhập} -- xác thực, phân quyền
+    \item \textbf{Dashboard} -- thống kê, xuất Excel/PDF
+    \item \textbf{Kết quả} -- video + timeline + ảnh minh chứng
+    \item \textbf{Kiểm duyệt} -- Phê duyệt / Bỏ qua
+    \item \textbf{AI Detection} -- bbox real-time, chỉnh ngưỡng
+  \end{itemize}
+
+\end{column}
+\end{columns}
+
+\end{frame}
+
+
+% ── Slide 4: Triển khai ──────────────────────────────────────────────────────
+\begin{frame}{Triển khai trên Google Cloud}
+
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+  \textbf{Hạ tầng}
+  \begin{itemize}
+    \item \textbf{GKE Autopilot} -- \texttt{asia-southeast1}
+    \item \textbf{Traefik} -- điểm vào duy nhất
+    \item \textbf{TLS} -- Let's Encrypt + cert-manager
+    \item Dịch vụ nội bộ \textbf{không mở} Internet
+  \end{itemize}
+
+\end{column}
+\begin{column}{0.47\textwidth}
+  \textbf{CI/CD Pipeline}
+  \begin{enumerate}\small
+    \item Push code $\to$ \textbf{GitHub}
+    \item \textbf{GitHub Actions} build Docker image
+    \item Đẩy lên \textbf{Artifact Registry}
+    \item Update workload trên \textbf{GKE}
+  \end{enumerate}
+
+  \vspace{0.4em}
+  \begin{block}{URL demo}
+    \centering\small
+    \href{https://dtdat-nthv.duckdns.org}{\texttt{dtdat-nthv.duckdns.org}}
+  \end{block}
+\end{column}
+\end{columns}
+
+\end{frame}

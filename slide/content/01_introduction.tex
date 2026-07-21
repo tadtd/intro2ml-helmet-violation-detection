@@ -1,0 +1,55 @@
+\section{Giới thiệu}
+
+% ── Slide 1: Bài toán ───────────────────────────────────────────────────────
+\begin{frame}{Bài toán và mục tiêu đồ án}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+  \textbf{Vấn đề thực tiễn}\footnotesize
+  \begin{itemize}
+    \item Không đội mũ bảo hiểm làm tăng nguy cơ chấn thương nặng khi xảy ra TNGT
+    \item Giám sát thủ công: tốn nhân lực, dễ bỏ sót vi phạm
+  \end{itemize}
+  \normalsize\vspace{0.2em}
+  \textbf{Mục tiêu đồ án}\footnotesize
+  \begin{itemize}
+    \item Xây dựng bộ dữ liệu giao thông có gán nhãn
+    \item Huấn luyện \textbf{YOLO} đạt độ chính xác real-time
+    \item Tối ưu mô hình qua \textbf{ONNX Runtime}
+    \item Triển khai hệ thống microservices trên \textbf{GKE}
+  \end{itemize}
+\end{column}
+\begin{column}{0.42\textwidth}
+  \begin{block}{Giải pháp}
+    \small Kết hợp camera giám sát với mô hình Deep Learning để tự động phát hiện vi phạm, cung cấp minh chứng trực quan.
+  \end{block}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── Slide 2: Pipeline tổng quan ─────────────────────────────────────────────
+\begin{frame}{Tổng quan pipeline}
+
+\centering
+\includegraphics[width=0.63\textwidth]{pipeline_overview.png}
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+  \begin{enumerate}\scriptsize
+    \item Thu thập \& gán nhãn (CVAT + Grounding DINO)
+    \item Tiền xử lý \& augmentation
+    \item Huấn luyện YOLO
+  \end{enumerate}
+\end{column}
+\begin{column}{0.48\textwidth}
+  \begin{enumerate}\scriptsize
+    \setcounter{enumi}{3}
+    \item Xuất ONNX \& tối ưu suy luận
+    \item Triển khai microservices (GKE)
+    \item Dashboard hiển thị vi phạm
+  \end{enumerate}
+\end{column}
+\end{columns}
+
+\end{frame}

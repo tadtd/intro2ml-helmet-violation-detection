@@ -1,0 +1,86 @@
+\documentclass[12pt]{article}
+
+\usepackage{hcmus-report-template}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+
+% Disable indentation on new paragraphs
+\setlength{\parindent}{0pt}
+
+% Line spacing 1.5
+\renewcommand{\baselinestretch}{1.5}
+
+% Optional: graphic path
+% \graphicspath{PATH_TO_GRAPHIC_FOLDER}
+
+% To use Times font family, uncomment this row
+% \usepackage{mathptmx}
+
+% To use roman section / subsection, uncomment these rows
+% \renewcommand{\thesection}{\Roman{section}}
+% \renewcommand{\thesubsection}{\thesection.\Roman{subsection}}
+
+% Define course name, report name and report title.
+\newcommand{\coursename}{Nhập môn học máy}
+\newcommand{\reportname}{Hệ thống phát hiện vi phạm không đội mũ bảo hiểm}
+\newcommand{\reporttitle}{Báo cáo kết quả huấn luyện mô hình}
+
+\newcommand{\studentname}{Đỗ Tiến Đạt - 23120119 \\ Lê Nhật Minh Tâm - 23120163\\ Triệu Tuấn Kiệt - 23120137 \\ Nguyễn Đăng Khoa - 23120134 \\ Huỳnh Mạnh Tường - 23120105}
+\newcommand{\teachername}{Thầy Bùi Tiến Lên}
+
+% Header
+\lhead{\reporttitle \\ \reportname}
+\rhead{
+Trường Đại học Khoa học Tự nhiên - ĐHQG HCM\\
+\coursename
+}
+\renewcommand{\headrulewidth}{0pt}
+
+% Footer
+
+
+% ============ DOCUMENT ============
+\begin{document}
+\renewcommand{\listfigurename}{Danh mục hình}
+\renewcommand{\listtablename}{Danh mục bảng}
+
+\pagenumbering{roman}
+\input{content/title}
+
+\tableofcontents
+\pagebreak
+\phantomsection
+\addcontentsline{toc}{section}{Danh mục hình}
+\listoffigures
+\pagebreak
+\phantomsection
+\addcontentsline{toc}{section}{Danh mục bảng}
+\listoftables
+\pagebreak
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{content/introduction}
+\input{content/objectives}
+\input{content/models}
+\input{content/conclusion}
+% \input{content/thu_cong}
+% \input{content/thuattoan}
+% \input{content/code}
+% \input{content/ngonngu}
+% \input{content/cite}
+
+% References
+\input{ref/ref.tex}
+
+% Appendix
+% \appendix
+% Add \cleardoublepage to move appendices to next page.
+% \input{appendix/appendix.tex}
+\end{document}

@@ -1,0 +1,7 @@
+\section{Mở đầu}
+
+Bài toán của đề tài là xây dựng hệ thống phát hiện vi phạm không đội mũ bảo hiểm từ ảnh giao thông. Đầu vào của hệ thống là ảnh được thu thập từ nhiều nguồn camera và bộ dữ liệu công khai; đầu ra mong muốn là tập các bounding boxes kèm nhãn lớp cho ba đối tượng: \textit{motorbike}, \textit{helmet} và \textit{non-helmet}. Đây là bài toán phát hiện đối tượng đa lớp, trong đó mô hình phải đồng thời xác định vị trí đối tượng và phân loại đúng từng bounding box.
+
+Ý nghĩa thực tế của bài toán nằm ở khả năng hỗ trợ giám sát an toàn giao thông. Trong bối cảnh ảnh camera thường có góc nhìn từ trên cao, đối tượng nhỏ, nhiều xe cùng xuất hiện và có hiện tượng che khuất, bài toán không chỉ là phân loại ảnh đơn giản mà cần một mô hình detection đủ tốt để nhận diện từng người/xe trong cùng khung hình.
+
+Báo cáo này trình bày ba mô hình đã được nhóm thử nghiệm: YOLO, Faster R-CNN và RT-DETR. Ba mô hình dùng cùng dữ liệu đầu vào và cùng ba lớp nhãn, nhưng khác nhau về kiến trúc và chiến lược phát hiện đối tượng. YOLO là detector một giai đoạn ưu tiên tốc độ, Faster R-CNN là detector hai giai đoạn với cơ chế proposal, còn RT-DETR là detector dựa trên transformer theo hướng end-to-end. Báo cáo tập trung vào quy trình kỹ thuật, cấu hình huấn luyện, kết quả thực nghiệm và phân tích ưu/nhược điểm của từng mô hình.

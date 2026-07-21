@@ -1,0 +1,103 @@
+\section{Mô hình}
+
+% ── Slide 1: So sánh 3 mô hình ───────────────────────────────────────────────
+\begin{frame}{Các mô hình thử nghiệm}
+
+\begin{table}
+\small
+\begin{tabular}{l l r l}
+  \toprule
+  \textbf{Mô hình} & \textbf{Kiến trúc} & \textbf{Params} & \textbf{Mục đích} \\
+  \midrule
+  YOLO        & One-stage   & 21.8M & Tốc độ cao -- real-time \\
+  Faster R-CNN & Two-stage  & 41.3M & Baseline độ chính xác \\
+  RT-DETR     & Transformer & 32.8M & End-to-end, giảm hậu xử lý \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.4em}
+\begin{columns}[T]
+\begin{column}{0.32\textwidth}
+  \textbf{YOLO}\\
+  Backbone $\to$ Neck $\to$ Head\\
+  Dự đoán bbox trực tiếp
+\end{column}
+\begin{column}{0.32\textwidth}
+  \textbf{Faster R-CNN}\\
+  RPN $\to$ RoI Head\\
+  Backbone: ResNet50-FPN
+\end{column}
+\begin{column}{0.32\textwidth}
+  \textbf{RT-DETR}\\
+  Encoder $\to$ Transformer Decoder\\
+  Object queries end-to-end
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── Slide 3: Kiến trúc ───────────────────────────────────────────────────────
+\begin{frame}{Kiến trúc mô hình}
+
+\begin{columns}[T]
+\begin{column}{0.33\textwidth}
+  \centering
+  \textbf{YOLO}\\[0.2em]
+  \includegraphics[width=\textwidth,height=0.52\textheight,keepaspectratio]{yolo_architecture.png}
+\end{column}
+\begin{column}{0.33\textwidth}
+  \centering
+  \textbf{Faster R-CNN}\\[0.2em]
+  \includegraphics[width=\textwidth,height=0.52\textheight,keepaspectratio]{fasterrcnn_architecture.png}
+\end{column}
+\begin{column}{0.33\textwidth}
+  \centering
+  \textbf{RT-DETR}\\[0.2em]
+  \includegraphics[width=\textwidth,height=0.52\textheight,keepaspectratio]{rtdetr_architecture.png}
+\end{column}
+\end{columns}
+
+\vspace{0.2em}
+\begin{block}{Lý do chọn YOLO triển khai}
+  Tốc độ cao nhất (40~FPS) -- mAP \& recall đủ tốt cho giám sát giao thông thực tế.
+\end{block}
+
+\end{frame}
+
+% ── Slide 4: Cấu hình huấn luyện ─────────────────────────────────────────────
+\begin{frame}{Cấu hình huấn luyện}
+
+\begin{table}
+\scriptsize
+\begin{tabular}{l l l l}
+  \toprule
+  & \textbf{YOLO} & \textbf{Faster R-CNN} & \textbf{RT-DETR} \\
+  \midrule
+  Pretrained  & yolo26m.pt       & ResNet50-FPN   & RT-DETR      \\
+  Epochs      & 50               & 50             & 40           \\
+  Batch size  & 32               & 2              & 2            \\
+  Optimizer   & Auto (Ultralytics) & SGD (m=0.9)  & AdamW        \\
+  LR          & 0.000111         & 0.001799       & 0.000241     \\
+  Loss        & Box+Cls+DFL      & RPN+ROI        & GIoU+L1+Cls  \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.4em}
+\begin{columns}[T]
+\begin{column}{0.6\textwidth}
+  \textbf{Tinh chỉnh siêu tham số (2 pha)}
+  \begin{enumerate}
+    \item Random search qua \textbf{Ray Tune} (lr, batch, weight decay)
+    \item Train final model với cấu hình tốt nhất trên validation
+  \end{enumerate}
+\end{column}
+\begin{column}{0.37\textwidth}
+  \begin{block}{Fine-tune từ pretrained}
+    Giảm thời gian train, phù hợp với quy mô dữ liệu
+  \end{block}
+\end{column}
+\end{columns}
+
+\end{frame}

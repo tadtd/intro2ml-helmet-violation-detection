@@ -251,3 +251,15 @@ supabase/.temp/
 github-key.json
 
 submission/
+# LaTeX build artifacts (report + slide); sources and final PDFs are tracked
+*.aux
+*.bbl
+*.blg
+*.lof
+*.lot
+*.nav
+*.snm
+*.toc
+*.out
+*.synctex.gz
+slide/compile_out.txt
