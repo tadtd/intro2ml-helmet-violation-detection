@@ -38,9 +38,9 @@ COMPARISON_METRICS = {
 
 # AP@0.5 per class — the numbers the combined mAP above hides.
 PER_CLASS_AP50 = {
-    "YOLO": {"motorbike": 0.790, "helmet": 0.780, "non-helmet": 0.770},
-    "Faster R-CNN": {"motorbike": 0.740, "helmet": 0.730, "non-helmet": 0.720},
-    "RT-DETR": {"motorbike": 0.770, "helmet": 0.760, "non-helmet": 0.750},
+    "YOLO": {"motorbike": 0.794, "helmet": 0.779, "non-helmet": 0.767},
+    "Faster R-CNN": {"motorbike": 0.752, "helmet": 0.723, "non-helmet": 0.715},
+    "RT-DETR": {"motorbike": 0.767, "helmet": 0.761, "non-helmet": 0.752},
 }
 MODEL_COLORS = {"YOLO": "#2F80ED", "Faster R-CNN": "#27AE60", "RT-DETR": "#EB5757"}
 BOX_COLORS = {"motorbike": "#2F80ED", "helmet": "#27AE60", "non-helmet": "#EB5757"}

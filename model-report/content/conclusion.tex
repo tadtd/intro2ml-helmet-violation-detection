@@ -2,7 +2,7 @@
 
 Ba mô hình đều học được và chạy inference trên bài toán phát hiện mũ bảo hiểm, nhưng thể hiện ưu/nhược điểm rất khác nhau. Xét chỉ số gộp đã tổng hợp trước đó, YOLO đứng đầu với mAP@0.5 là 0.78, mAP@0.5:0.95 là 0.54 và AR/Recall là 0.86, cao hơn Faster R-CNN (0.73, 0.50, 0.72) lẫn RT-DETR (0.76, 0.53, 0.84). Khi phân rã theo từng lớp, YOLO vẫn giữ xu hướng dẫn đầu ở cả \textit{motorbike}, \textit{helmet} và \textit{non-helmet}.
 
-Trên lớp \textit{non-helmet}, tức lớp quyết định của đề tài, YOLO đạt AP@0.5 là 0.770 và F1 là 0.797, cao hơn Faster R-CNN (0.720 và 0.632) lẫn RT-DETR (0.750 và 0.764). Kết hợp với tốc độ 40 FPS so với 12 và 4, YOLO là lựa chọn triển khai hợp lý nhất vì vừa dẫn đầu số gộp, vừa cho chất lượng tốt nhất trên đúng lớp mà hệ thống cần và đáp ứng được yêu cầu thời gian thực.
+Trên lớp \textit{non-helmet}, tức lớp quyết định của đề tài, YOLO đạt AP@0.5 là 0.767 và F1 là 0.805, cao hơn Faster R-CNN (0.715 và 0.633) lẫn RT-DETR (0.752 và 0.780). Kết hợp với tốc độ 40 FPS so với 12 và 4, YOLO là lựa chọn triển khai hợp lý nhất vì vừa dẫn đầu số gộp, vừa cho chất lượng tốt nhất trên đúng lớp mà hệ thống cần và đáp ứng được yêu cầu thời gian thực.
 
 Kết quả cho thấy khó khăn lớn nhất của bài toán nằm ở dữ liệu: lớp \textit{non-helmet} ít hơn, vật thể cần nhận diện nhỏ và phân phối giữa validation/test chưa hoàn toàn đồng nhất. Vì vậy, ngoài việc điều chỉnh mô hình, hướng cải thiện quan trọng là cân bằng lại dữ liệu, kiểm tra chất lượng pseudo-labels, tăng thêm ảnh chứa vi phạm không đội mũ và đánh giá lại trên split được chia theo nguồn ảnh một cách nhất quán.
 
