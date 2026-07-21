@@ -1,0 +1,87 @@
+\section{Xây dựng và Triển khai Ứng dụng}
+\label{sec:deployment}
+
+\subsection{Kiến trúc Hệ thống}
+
+Hệ thống phát hiện vi phạm không đội mũ bảo hiểm được xây dựng theo hướng ứng dụng web container hóa, gồm giao diện người dùng, các dịch vụ backend độc lập, hàng đợi xử lý và dịch vụ lưu trữ bên ngoài. Sơ đồ kiến trúc tổng thể được trình bày trong Hình~\ref{fig:deployment-architecture}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/system_architecture.png}
+    \caption{Kiến trúc triển khai của hệ thống phát hiện vi phạm không đội mũ bảo hiểm.}
+    \label{fig:deployment-architecture}
+\end{figure}
+
+Người dùng truy cập hệ thống thông qua tên miền DuckDNS. Tên miền này trỏ đến điểm vào công khai của hệ thống trên Google Cloud, sau đó các yêu cầu HTTPS được định tuyến bởi Traefik. Traefik đóng vai trò như cổng vào chung, tiếp nhận các yêu cầu từ bên ngoài và chuyển tiếp đến đúng thành phần bên trong cụm triển khai.
+
+Phần giao diện được xây dựng bằng Next.js và được triển khai như một container riêng. Các yêu cầu hiển thị trang web được Traefik định tuyến đến frontend. Các yêu cầu nghiệp vụ như đăng nhập, tải ảnh hoặc video, tạo tác vụ phát hiện và theo dõi trạng thái xử lý được chuyển đến các dịch vụ backend tương ứng.
+
+Backend được tách thành nhiều dịch vụ theo chức năng. Dịch vụ Auth phụ trách xác thực người dùng và làm việc với Supabase Auth. Dịch vụ Ingestion tiếp nhận dữ liệu đầu vào, lưu tệp tải lên và metadata vào Supabase. Dịch vụ Orchestration tạo và quản lý các tác vụ phát hiện, sau đó đưa công việc vào Redis. Redis được sử dụng làm hàng đợi và bộ nhớ đệm trung gian. Inference Worker nhận tác vụ từ hàng đợi, chạy mô hình phát hiện vi phạm, sau đó ghi kết quả và đầu ra đã xử lý về Supabase. Dịch vụ Notification đọc trạng thái hoặc kết quả xử lý từ Supabase và cập nhật lại cho giao diện người dùng.
+
+Supabase được đặt bên ngoài cụm Google Cloud và được sử dụng cho nhiều vai trò: cơ sở dữ liệu, xác thực, lưu trữ tệp và cập nhật thời gian thực. Cách tổ chức này giúp phần tính toán và phần triển khai ứng dụng nằm trên Google Cloud, trong khi dữ liệu người dùng, tệp đầu vào và kết quả được quản lý tập trung bởi Supabase.
+
+\subsection{Giao diện và Chức năng}
+
+Sau khi triển khai, hệ thống cung cấp giao diện web cho người vận hành theo dõi, tải lên và kiểm duyệt các kết quả phát hiện vi phạm. Các màn hình chính được thiết kế theo tông màu tối nhằm tăng khả năng quan sát video, ảnh minh chứng và các trạng thái cảnh báo trong thời gian dài.
+
+\subsubsection{Đăng nhập và phân quyền người dùng}
+
+Màn hình đăng nhập là điểm vào đầu tiên của hệ thống, cho phép người dùng nhập email, mật khẩu và chọn vai trò trước khi truy cập các chức năng nghiệp vụ. Trong phạm vi triển khai hiện tại, hệ thống hỗ trợ vai trò nhân viên vận hành để theo dõi dashboard, tải video, xem kết quả phát hiện và phê duyệt các trường hợp vi phạm. Việc xác thực người dùng được tích hợp với Supabase Auth, nhờ đó frontend chỉ hiển thị các trang nghiệp vụ sau khi người dùng có phiên đăng nhập hợp lệ.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/demo/login.png}
+    \caption{Giao diện đăng nhập của hệ thống.}
+    \label{fig:demo-login}
+\end{figure}
+
+\subsubsection{Bảng điều khiển tổng quan}
+
+Sau khi đăng nhập, người dùng được chuyển đến bảng điều khiển tổng quan như Hình~\ref{fig:demo-dashboard}. Trang này tổng hợp các chỉ số chính của hệ thống, bao gồm tổng số vi phạm được phát hiện, số video có vi phạm và độ chính xác trung bình dựa trên các kết quả đã được người vận hành phê duyệt. Ngoài các thẻ thống kê, dashboard còn hiển thị xu hướng vi phạm theo thời gian và trạng thái phê duyệt, giúp người vận hành nhanh chóng nắm được tình hình xử lý dữ liệu.
+
+Giao diện dashboard cũng cung cấp các thao tác nghiệp vụ thường dùng như làm mới dữ liệu, xuất báo cáo Excel/CSV, xuất báo cáo PDF và chuyển nhanh đến màn hình tải video. Thanh điều hướng phía trên cho phép di chuyển giữa các chức năng chính: bảng điều khiển, tải lên video, giám sát camera, đổi ngôn ngữ và đăng xuất.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/demo/dashboard.png}
+    \caption{Bảng điều khiển tổng quan thống kê vi phạm và trạng thái phê duyệt.}
+    \label{fig:demo-dashboard}
+\end{figure}
+
+\subsubsection{Xem kết quả phát hiện và kiểm duyệt vi phạm}
+
+Màn hình kết quả phát hiện cho phép người vận hành xem lại video gốc, danh sách thời điểm có vi phạm và thư viện ảnh minh chứng được trích xuất từ quá trình suy luận. Ở khu vực bên phải, hệ thống hiển thị dòng thời gian vi phạm, trong đó mỗi mục gồm nhãn vi phạm, độ tin cậy của mô hình và mốc thời gian tương ứng trong video. Khi chọn một mục trong dòng thời gian, video được đưa đến đúng thời điểm đó để người vận hành kiểm tra trực quan.
+
+Bên dưới khung video là thư viện ảnh minh chứng. Mỗi ảnh tương ứng với một phát hiện của mô hình và được gắn kèm độ tin cậy. Khi chọn một ảnh, khung phê duyệt ở bên phải hiển thị ảnh lớn hơn cùng độ tin cậy của mô hình, sau đó người vận hành có thể chọn \textit{Phê duyệt} hoặc \textit{Bỏ qua}. Cơ chế này giúp tách rõ hai bước: mô hình tự động đề xuất vi phạm, còn quyết định cuối cùng được ghi nhận thông qua thao tác kiểm duyệt của con người. Chỉ số độ chính xác trung bình trên dashboard được tính từ số phát hiện được phê duyệt trên tổng số phát hiện vi phạm.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/demo/inference.png}
+    \caption{Màn hình xem kết quả phát hiện, dòng thời gian vi phạm và phê duyệt ảnh minh chứng.}
+    \label{fig:demo-inference}
+\end{figure}
+
+\subsubsection{Phát hiện AI theo thời gian thực}
+
+Ngoài chế độ xem video gốc, hệ thống cung cấp chế độ phát hiện AI để hiển thị luồng suy luận trực tiếp trên canvas. Ở chế độ này, các đối tượng được mô hình phát hiện được vẽ bằng bounding box kèm nhãn và độ tin cậy, đồng thời hệ thống hiển thị số lượng đối tượng và số vi phạm đang được ghi nhận tại thời điểm hiện tại. Người dùng có thể điều chỉnh ngưỡng độ tin cậy để lọc các phát hiện có xác suất thấp, từ đó quan sát ảnh hưởng của ngưỡng đến kết quả hiển thị.
+
+Chế độ phát hiện AI đặc biệt hữu ích khi cần kiểm tra trực quan cách mô hình phản ứng với từng khung hình, trong khi chế độ video gốc phù hợp hơn cho thao tác tua, tạm dừng và đối chiếu bằng trình phát chuẩn của trình duyệt. Hai chế độ này bổ sung cho nhau: chế độ AI thể hiện quá trình suy luận, còn chế độ video gốc hỗ trợ kiểm chứng và phê duyệt kết quả.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/demo/ai-detect-realtime.png}
+    \caption{Chế độ phát hiện AI hiển thị bounding box và thông tin suy luận trên video.}
+    \label{fig:demo-ai-detect}
+\end{figure}
+
+\FloatBarrier
+
+\subsection{Triển khai}
+
+Hệ thống được triển khai trên Google Cloud theo mô hình container hóa. Mỗi thành phần chính của ứng dụng, bao gồm frontend Next.js và các dịch vụ backend, được đóng gói thành Docker image. Khi lập trình viên đẩy mã nguồn lên GitHub, GitHub Actions được kích hoạt để xây dựng image, gắn nhãn theo commit SHA và đưa image lên Artifact Registry. Sau đó các workload trên Google Kubernetes Engine Autopilot được cập nhật để sử dụng phiên bản image mới.
+
+Môi trường chạy trên Google Cloud sử dụng GKE Autopilot tại khu vực \texttt{asia-southeast1}. Traefik là điểm vào công khai duy nhất của hệ thống. Chứng chỉ TLS được cấp thông qua Let's Encrypt và cert-manager, giúp người dùng truy cập ứng dụng bằng giao thức HTTPS. Các dịch vụ nội bộ như Orchestration, Notification và Inference Worker không được mở trực tiếp ra Internet mà chỉ được gọi thông qua luồng định tuyến và giao tiếp nội bộ trong hệ thống.
+
+Ứng dụng đã được gắn tên miền DuckDNS và có thể truy cập tại \href{https://dtdat-nthv.duckdns.org}{Helmet Violation Detection}.
+
+Trong kiến trúc hiện tại, Supabase được sử dụng như dịch vụ bên ngoài cho cơ sở dữ liệu, xác thực, lưu trữ tệp và realtime. Redis được triển khai trong cụm Kubernetes để phục vụ hàng đợi tác vụ và bộ nhớ đệm. Cách triển khai này phù hợp với mục tiêu demo và staging ban đầu: giảm số lượng dịch vụ cloud phải quản lý, chỉ sử dụng một điểm vào công khai, và vẫn đảm bảo các thành phần chính của hệ thống có thể được triển khai, cập nhật và rollback thông qua pipeline CI/CD.

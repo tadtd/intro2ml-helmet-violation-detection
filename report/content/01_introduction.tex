@@ -1,0 +1,36 @@
+\section{Giới thiệu}
+\label{sec:introduction}
+
+\subsection{Phân tích Vấn đề (Problem Definition)}
+Vi phạm không đội mũ bảo hiểm khi tham gia giao thông bằng xe máy là một trong những nguyên nhân hàng đầu làm gia tăng mức độ nghiêm trọng của tai nạn giao thông tại Việt Nam, nơi xe máy chiếm tỷ trọng phương tiện lưu thông áp đảo. Việc giám sát và xử phạt vi phạm này hiện chủ yếu dựa vào lực lượng cảnh sát giao thông quan sát trực tiếp hoặc rà soát thủ công camera an ninh, dẫn đến hạn chế về phạm vi bao phủ, tốn nhiều nhân lực và dễ bỏ sót vi phạm, đặc biệt tại các nút giao thông đông đúc hoặc vào khung giờ cao điểm.
+
+Sự phát triển của các mô hình phát hiện đối tượng (object detection) dựa trên học sâu, kết hợp với hạ tầng camera giám sát giao thông sẵn có tại các đô thị lớn, mở ra khả năng xây dựng một hệ thống tự động phát hiện vi phạm không đội mũ bảo hiểm theo thời gian thực. Một hệ thống như vậy không chỉ giảm tải công việc giám sát thủ công mà còn cung cấp dữ liệu định lượng, minh chứng trực quan (hình ảnh/video vi phạm) hỗ trợ công tác xử phạt, góp phần nâng cao ý thức chấp hành luật giao thông và giảm thiểu thương vong do tai nạn.
+
+\subsection{Mục tiêu của Đồ án}
+Đồ án hướng tới các mục tiêu cụ thể sau:
+\begin{itemize}
+    \item Xây dựng bộ dữ liệu hình ảnh giao thông có gán nhãn cho bài toán phát hiện người điều khiển xe máy không đội mũ bảo hiểm.
+    \item Huấn luyện mô hình phát hiện đối tượng dựa trên kiến trúc \textbf{YOLOv8}, đạt độ chính xác và tốc độ suy luận phù hợp cho ứng dụng thời gian thực (real-time/near-real-time).
+    \item Tối ưu hóa mô hình để triển khai hiệu quả thông qua \textbf{ONNX Runtime}, đảm bảo khả năng phục vụ suy luận với độ trễ thấp.
+    \item Xây dựng và triển khai một hệ thống ứng dụng hoàn chỉnh theo kiến trúc microservices, cho phép tiếp nhận luồng dữ liệu (ảnh/video), thực hiện suy luận, lưu trữ kết quả và hiển thị vi phạm qua giao diện dashboard trực quan.
+    \item Đánh giá hiệu năng mô hình trên tập dữ liệu kiểm thử, so sánh với các baseline, đồng thời phân tích hạn chế và đề xuất hướng cải thiện.
+\end{itemize}
+
+\subsection{Tổng quan về Phương pháp}
+Phương pháp tiếp cận của đồ án được triển khai theo một quy trình gồm các giai đoạn chính (xem Hình~\ref{fig:pipeline-overview}):
+
+\begin{enumerate}
+    \item \textbf{Thu thập và gán nhãn dữ liệu:} Thu thập hình ảnh/video giao thông, thực hiện gán nhãn bán tự động bằng công cụ CVAT kết hợp mô hình Grounding DINO để tăng tốc quá trình tạo nhãn cho tập dữ liệu huấn luyện. Cuối cùng, nhóm kiểm tra thủ công toàn bộ nhãn bằng CVAT.
+    \item \textbf{Tiền xử lý dữ liệu:} Làm sạch, chuẩn hóa và tăng cường dữ liệu (data augmentation) nhằm cải thiện khả năng tổng quát hóa của mô hình.
+    \item \textbf{Huấn luyện mô hình:} Huấn luyện mô hình phát hiện đối tượng YOLOv8 trên tập dữ liệu đã xử lý, tinh chỉnh siêu tham số để tối ưu hiệu năng.
+    \item \textbf{Xuất và tối ưu mô hình:} Chuyển đổi mô hình sang định dạng ONNX, sử dụng ONNX Runtime để tối ưu tốc độ suy luận khi triển khai.
+    \item \textbf{Triển khai ứng dụng:} Đóng gói mô hình vào một hệ thống microservices (FastAPI, Celery, Redis, Next.js, Supabase) và triển khai trên nền tảng Google Kubernetes Engine (GKE), cho phép xử lý bất đồng bộ các tác vụ suy luận.
+    \item \textbf{Hiển thị và cảnh báo:} Kết quả phát hiện vi phạm được hiển thị qua giao diện dashboard, hỗ trợ quy trình xem xét và xác minh vi phạm.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{img/pipeline_overview.png}
+    \caption{Sơ đồ tổng quan quy trình xây dựng hệ thống phát hiện vi phạm mũ bảo hiểm}
+    \label{fig:pipeline-overview}
+\end{figure}
