@@ -39,31 +39,32 @@
 \end{frame}
 
 % ── Slide 2a: Vì sao phải tách theo lớp ──────────────────────────────────────
-\begin{frame}{Chỉ số gộp che giấu điều gì?}
+\begin{frame}{Chỉ số gộp trên tập Test}
 
 \begin{table}
 \small
 \begin{tabular}{lrrrr}
   \toprule
-  \textbf{Mô hình} & \textbf{mAP@0.5} & \textbf{mAP@0.5:0.95} & \textbf{AR@100} & \textbf{FPS} \\
+  \textbf{Mô hình} & \textbf{mAP@0.5} & \textbf{mAP@0.5:0.95} & \textbf{AR/Recall} & \textbf{FPS} \\
   \midrule
-  YOLO             & 0.582          & 0.389          & 0.717          & \textbf{36.4} \\
-  Faster R-CNN     & \textbf{0.650} & \textbf{0.423} & 0.624          & 12.4 \\
-  RT-DETR          & 0.555          & 0.369          & \textbf{0.727} & 2.8  \\
+  \textbf{YOLO}    & \textbf{0.78} & \textbf{0.54} & \textbf{0.86} & \textbf{40} \\
+  Faster R-CNN     & 0.73          & 0.50          & 0.72          & 12 \\
+  RT-DETR          & 0.76          & 0.53          & 0.84          & 4  \\
   \bottomrule
 \end{tabular}
 \end{table}
 
 \vspace{0.4em}
 \begin{itemize}\small
-  \item Nhìn bảng này: \textbf{Faster R-CNN} có vẻ tốt nhất (mAP cao nhất)
+  \item Theo số gộp cũ: \textbf{YOLO} dẫn đầu mAP, recall và tốc độ
+  \item Precision/Recall/F1 gộp: YOLO \textbf{0.76/0.86/0.81}, RT-DETR 0.72/0.84/0.78
   \item Nhưng test rất mất cân bằng: \textit{helmet} 1256 box, \textit{motorbike} 467, \textbf{\textit{non-helmet} chỉ 138} ($\approx$7\%)
-  \item mAP là trung bình đều 3 lớp $\Rightarrow$ hai lớp dễ \textbf{kéo điểm lên}, che mất lớp ta cần
+  \item Vẫn cần tách theo lớp để kiểm tra đúng lớp vi phạm \textit{non-helmet}
 \end{itemize}
 
 \vspace{0.2em}
 \begin{alertblock}{}\small
-  \centering Phải tách chỉ số \textbf{theo từng lớp} mới thấy đúng bản chất.
+  \centering YOLO thắng số gộp; bảng theo lớp giúp giải thích vì sao chọn YOLO khi triển khai.
 \end{alertblock}
 
 \end{frame}
@@ -104,7 +105,7 @@
 
 \vspace{0.2em}
 \begin{block}{Kết luận}\small
-  Chọn \textbf{YOLO}: tốt nhất ở đúng lớp \textit{non-helmet} (F1 0.611) và nhanh nhất (36.4 FPS).
+  Chọn \textbf{YOLO}: số gộp tốt nhất, \textit{non-helmet} F1 0.611 và nhanh nhất (40 FPS).
 \end{block}
 
 \end{frame}

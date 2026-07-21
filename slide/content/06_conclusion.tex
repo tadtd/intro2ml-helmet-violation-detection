@@ -8,7 +8,7 @@
   \begin{itemize}
     \item Dataset \textbf{3.298 ảnh}, 3 lớp nhãn (COCO)
     \item So sánh: YOLO, Faster R-CNN, RT-DETR
-    \item \textbf{YOLO}: F1 \textit{non-helmet}=0.611, \textbf{36.4 FPS}
+    \item \textbf{YOLO}: mAP@0.5=0.78, F1 \textit{non-helmet}=0.611, \textbf{40 FPS}
     \item Hệ thống microservices trên \textbf{GKE Autopilot}
     \item Dashboard: upload, kiểm duyệt, xuất báo cáo
   \end{itemize}
@@ -16,7 +16,7 @@
   \textbf{Hạn chế}\footnotesize
   \begin{itemize}
     \item Mất cân bằng lớp (non-helmet $\ll$ helmet)
-    \item RT-DETR chỉ 2.8 FPS -- chưa phù hợp real-time
+    \item RT-DETR chỉ 4 FPS -- chưa phù hợp real-time
     \item Chưa xử lý tốt ảnh tối, góc xa
   \end{itemize}
 \end{column}

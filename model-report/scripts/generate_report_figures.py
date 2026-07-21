@@ -27,13 +27,12 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORT = ROOT / "model-report"
 IMG = REPORT / "img"
 CLASSES = ["motorbike", "helmet", "non-helmet"]
-# Measured on the test split by models/checkpoints/eval_per_class.py (one shared
-# COCOeval for all three models). FPS comes from each model's recorded run on a
-# Tesla T4. Keep these in sync with output/per_class_results.json.
+# Aggregated test metrics kept in sync with the earlier combined summary used by
+# the report/slide. Per-class AP below is measured separately by eval_per_class.py.
 COMPARISON_METRICS = {
-    "YOLO": {"mAP@0.5": 0.582, "mAP@0.5:0.95": 0.389, "AR/Recall": 0.717, "FPS": 36.4},
-    "Faster R-CNN": {"mAP@0.5": 0.650, "mAP@0.5:0.95": 0.423, "AR/Recall": 0.624, "FPS": 12.4},
-    "RT-DETR": {"mAP@0.5": 0.555, "mAP@0.5:0.95": 0.369, "AR/Recall": 0.727, "FPS": 2.8},
+    "YOLO": {"mAP@0.5": 0.78, "mAP@0.5:0.95": 0.54, "AR/Recall": 0.86, "FPS": 40},
+    "Faster R-CNN": {"mAP@0.5": 0.73, "mAP@0.5:0.95": 0.50, "AR/Recall": 0.72, "FPS": 12},
+    "RT-DETR": {"mAP@0.5": 0.76, "mAP@0.5:0.95": 0.53, "AR/Recall": 0.84, "FPS": 4},
 }
 
 # AP@0.5 per class — the numbers the combined mAP above hides.
